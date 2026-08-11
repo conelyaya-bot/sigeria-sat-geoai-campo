@@ -1,0 +1,23 @@
+{
+  "version": 8,
+  "name": "SIGERIA Satelital (Esri World Imagery)",
+  "sources": {
+    "esri-satelital": {
+      "type": "raster",
+      "tiles": [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      ],
+      "tileSize": 256,
+      "attribution": "Esri, Maxar, Earthstar Geographics"
+    }
+  },
+  "layers": [
+    {
+      "id": "esri-satelital-layer",
+      "type": "raster",
+      "source": "esri-satelital",
+      "minzoom": 0,
+      "maxzoom": 20
+    }
+  ]
+}
