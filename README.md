@@ -163,6 +163,20 @@ Ver también `mobile/README_MOBILE.md` para el detalle técnico completo de esta
 - Mapa base "Calle" cambiado de un estilo vectorial genérico a **teselas reales de
   OpenStreetMap** (edificios, vías, nombres) para más nivel de detalle.
 
+## Quinta vuelta (2026-08-11) — mapa general en vivo, ficha por punto, control de versiones
+
+- **Mapa general en vivo** (`GET /api/gis/geojson_general`): "Abrir mapa real" y el menú
+  ya no muestran un evento suelto — cargan la **malla de todos los expedientes guardados**,
+  creciendo en tiempo real. Chip con el conteo de puntos visible en el mapa.
+- **Ficha al tocar un punto**: cada punto del mapa se puede tocar y abre una hoja con todos
+  los datos del objeto afectado **y su foto real** (traída del servidor) — verificado en
+  navegador de punta a punta: clic en el punto → ficha → foto.
+- **Menú**: se agregaron los 4 pasos del expediente (antes solo estaban como tarjetas en
+  Inicio), dejando claro que las 4 entradas abren el mismo expediente único.
+- **Control de versiones**: se inicializó Git en el proyecto (antes no existía ningún
+  repositorio) — 2 commits, `.gitignore` cubre `.venv/`, `build/`, bases de datos locales
+  y evidencias. Motivado por revisión del libro *Pro Git* que el usuario tenía en Descargas.
+
 ## Próximos pasos reales (no aspiracionales)
 
 1. Instalar Flutter y compilar el scaffold móvil contra el backend ya funcional.
