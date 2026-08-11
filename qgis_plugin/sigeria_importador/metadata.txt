@@ -1,0 +1,15 @@
+[general]
+name=SIGERIA Importador EDAN
+qgisMinimumVersion=3.22
+description=Importa el GeoJSON de objetos afectados exportado por la API de SIGERIA (SAT-GeoAI Chocó) y lo simboliza automaticamente por nivel de daño preliminar.
+about=Plugin del proyecto SIGERIA (Sistema Inteligente Geoespacial para Evaluacion, Respuesta e Inspeccion de Afectaciones). Se conecta al endpoint GET /api/gis/geojson/{id_evento} del backend FastAPI del MVP, o abre un archivo GeoJSON exportado manualmente, lo carga como capa vectorial y aplica simbologia categorizada por 'nivel_dano_preliminar' (sin_dano/leve/moderado/severo/colapso). Pensado para el modulo "GIS de campo" del MVP (control de calidad y cartografia en QGIS-escritorio, sección 16 del documento base). Construido con PyQGIS + PyQt5/Qt6 (mismo patron dual que contornos_generador y aptitud_ahp).
+version=0.1.0
+author=Proyecto SIGERIA - conelyaya
+email=conelyaya@gmail.com
+tracker=https://github.com/
+repository=https://github.com/
+tags=sigeria,edan,gestion del riesgo,desastres,gis de campo,importador,geojson,choco
+category=Vector
+icon=icon.svg
+experimental=True
+deprecated=False

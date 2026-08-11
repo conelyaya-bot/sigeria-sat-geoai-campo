@@ -1,0 +1,21 @@
+# Entornos y dependencias (se regeneran con requirements.txt / pubspec.yaml)
+backend/.venv/
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# Datos locales generados en desarrollo/pruebas — NO son parte del código fuente
+workspace/*.db
+workspace/evidencias/
+backend/workspace/
+
+# Archivos temporales de Excel
+docs/~$*.xlsx
+
+# Sistema
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc

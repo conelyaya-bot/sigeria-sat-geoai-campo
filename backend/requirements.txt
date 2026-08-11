@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+sqlalchemy>=2.0
+python-multipart>=0.0.9
+reportlab>=4.0
+
+# Producción (opcional, no requerido para el MVP local con SQLite):
+# psycopg2-binary
+# geoalchemy2

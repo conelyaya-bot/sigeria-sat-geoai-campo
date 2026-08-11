@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[-76.6413,5.6947]},"properties":{"id_objeto":"SIGERIA-CHO-27001-SIS-2026-000001","tipo_objeto":"vivienda","estado_operativo":"parcial","nivel_dano_preliminar":"moderado","fenomeno":"sismo","municipio_divipola":"27001","precision_gnss_m":4.2}}]}

@@ -1,0 +1,73 @@
+:root {
+  --azul: #1f4e5f;
+  --gris-claro: #f4f6f7;
+  --texto: #16232a;
+  --borde: #d7dee0;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--texto); }
+
+#topbar {
+  background: var(--azul);
+  color: white;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#marca { display: flex; align-items: center; gap: 10px; }
+#logo { height: 36px; width: 36px; border-radius: 50%; background: white; object-fit: cover; }
+#topbar h1 { font-size: 1.1rem; margin: 0; }
+#topbar h1 span { font-weight: 400; opacity: 0.85; font-size: 0.85rem; }
+#fuente-datos { display: flex; gap: 8px; align-items: center; font-size: 0.85rem; }
+#fuente-datos select, #fuente-datos button {
+  padding: 4px 8px; border-radius: 4px; border: none;
+}
+#fuente-datos button { background: #e08a1e; color: white; cursor: pointer; }
+
+main { display: flex; height: calc(100% - 92px); }
+#panel {
+  width: 320px;
+  min-width: 280px;
+  background: var(--gris-claro);
+  border-right: 1px solid var(--borde);
+  overflow-y: auto;
+  padding: 12px;
+}
+#panel h2 { font-size: 0.9rem; text-transform: uppercase; color: var(--azul); margin: 16px 0 8px; }
+
+#kpis { display: flex; gap: 8px; flex-wrap: wrap; }
+.kpi {
+  background: white; border: 1px solid var(--borde); border-radius: 8px;
+  padding: 10px; flex: 1; min-width: 90px; text-align: center;
+}
+.kpi span { display: block; font-size: 1.6rem; font-weight: 700; color: var(--azul); }
+.kpi label { font-size: 0.7rem; color: #555; }
+
+#leyenda .item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin: 4px 0; }
+#leyenda i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+
+#ul-objetos { list-style: none; padding: 0; margin: 0; }
+#ul-objetos li {
+  background: white; border: 1px solid var(--borde); border-radius: 6px;
+  padding: 8px; margin-bottom: 6px; font-size: 0.8rem; cursor: pointer;
+}
+#ul-objetos li:hover { border-color: var(--azul); }
+#ul-objetos li b { display: block; font-size: 0.85rem; }
+
+#map { flex: 1; }
+
+footer {
+  background: var(--azul); color: white; font-size: 0.7rem;
+  text-align: center; padding: 6px; opacity: 0.9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root { --gris-claro: #1b2528; --borde: #33434a; --texto: #eef2f3; }
+  body { background: #12181a; }
+  #panel { background: #1b2528; }
+  #ul-objetos li { background: #223034; }
+  .kpi { background: #223034; }
+}

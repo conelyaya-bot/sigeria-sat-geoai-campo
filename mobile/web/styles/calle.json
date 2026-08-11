@@ -1,0 +1,23 @@
+{
+  "version": 8,
+  "name": "SIGERIA Calle (OpenStreetMap detallado)",
+  "sources": {
+    "osm-detallado": {
+      "type": "raster",
+      "tiles": [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      ],
+      "tileSize": 256,
+      "attribution": "© OpenStreetMap contributors — edificios, vías y nombres reales"
+    }
+  },
+  "layers": [
+    {
+      "id": "osm-detallado-layer",
+      "type": "raster",
+      "source": "osm-detallado",
+      "minzoom": 0,
+      "maxzoom": 19
+    }
+  ]
+}
