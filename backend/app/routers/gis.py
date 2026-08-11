@@ -41,18 +41,31 @@ def crear_geometria(payload: GeometriaCrear):
 
 
 @router.get("/geojson_general")
-def exportar_geojson_general():
+def exportar_geojson_general(departamento: str | None = None, municipio_divipola: str | None = None):
     """FeatureCollection de TODOS los objetos afectados de TODOS los eventos —
     la 'malla de puntos' que se va llenando en tiempo real a medida que las
-    brigadas guardan expedientes, sin importar a qué evento pertenezcan."""
+    brigadas guardan expedientes, sin importar a qué evento pertenezcan.
+    Si se elige departamento/municipio en el visor del mapa, filtra a esa
+    zona en vez de mostrar el país entero mezclado."""
+    condiciones, params = [], []
+    if departamento:
+        condiciones.append("o.departamento = ?")
+        params.append(departamento)
+    if municipio_divipola:
+        condiciones.append("e.municipio_divipola = ?")
+        params.append(municipio_divipola)
+    where = (" WHERE " + " AND ".join(condiciones)) if condiciones else ""
+
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT o.id_objeto, o.tipo_objeto, o.estado_operativo, o.nivel_dano_preliminar,
+            f"""SELECT o.id_objeto, o.tipo_objeto, o.estado_operativo, o.nivel_dano_preliminar,
                       o.departamento, o.barrio_vereda, o.direccion, o.recolector_nombre,
                       e.fenomeno, e.municipio_divipola, g.geom_geojson, g.precision_gnss_m
                FROM objeto_afectado o
                JOIN evento e ON e.id_evento = o.id_evento
-               LEFT JOIN geometria g ON g.id_objeto = o.id_objeto"""
+               LEFT JOIN geometria g ON g.id_objeto = o.id_objeto
+               {where}""",
+            tuple(params),
         ).fetchall()
 
         features = []

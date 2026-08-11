@@ -14,7 +14,18 @@ import '../screens/mapa_screen.dart' show FichaObjeto, ControlZoomMapa;
 class MapaVivoEmbed extends StatefulWidget {
   final String backendUrl;
   final double height;
-  const MapaVivoEmbed({super.key, required this.backendUrl, this.height = 260});
+  // Filtro opcional por zona — a pedido del usuario, para el visor de
+  // Estadísticas: elegir departamento/municipio y ver solo la malla de
+  // puntos de esa zona, no el país entero mezclado.
+  final String? departamento;
+  final String? municipioDivipola;
+  const MapaVivoEmbed({
+    super.key,
+    required this.backendUrl,
+    this.height = 260,
+    this.departamento,
+    this.municipioDivipola,
+  });
 
   @override
   State<MapaVivoEmbed> createState() => _MapaVivoEmbedState();
@@ -24,11 +35,21 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
   MapLibreMapController? _controller;
   List<dynamic> _features = [];
   String? _estado;
+  bool _capaCreada = false;
 
   @override
   void dispose() {
     _controller?.onFeatureTapped.clear();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(MapaVivoEmbed old) {
+    super.didUpdateWidget(old);
+    if (old.departamento != widget.departamento ||
+        old.municipioDivipola != widget.municipioDivipola) {
+      _cargar();
+    }
   }
 
   @override
@@ -77,38 +98,50 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
   Future<void> _alejar() =>
       _controller?.animateCamera(CameraUpdate.zoomOut()) ?? Future.value();
 
+  Uri _urlGeojson() {
+    final params = <String, String>{};
+    if (widget.departamento != null) params['departamento'] = widget.departamento!;
+    if (widget.municipioDivipola != null) params['municipio_divipola'] = widget.municipioDivipola!;
+    return Uri.parse('${widget.backendUrl}/api/gis/geojson_general')
+        .replace(queryParameters: params.isEmpty ? null : params);
+  }
+
   Future<void> _cargar() async {
     final c = _controller;
     if (c == null) return;
     setState(() => _estado = 'Cargando…');
     try {
-      final resp = await http
-          .get(Uri.parse('${widget.backendUrl}/api/gis/geojson_general'))
-          .timeout(const Duration(seconds: 10));
+      final resp = await http.get(_urlGeojson()).timeout(const Duration(seconds: 10));
       if (resp.statusCode != 200) throw Exception('Backend respondió ${resp.statusCode}');
       final geojson = jsonDecode(resp.body) as Map<String, dynamic>;
       _features = geojson['features'] as List<dynamic>? ?? [];
 
-      await c.addGeoJsonSource('objetos_afectados', geojson);
-      await c.addCircleLayer(
-        'objetos_afectados',
-        'objetos_afectados_circulos',
-        CircleLayerProperties(
-          circleRadius: 7,
-          circleStrokeWidth: 2,
-          circleStrokeColor: '#ffffff',
-          circleColor: [
-            'match',
-            ['get', 'nivel_dano_preliminar'],
-            'sin_dano', '#2e8b57',
-            'leve', '#c9b400',
-            'moderado', '#e08a1e',
-            'severo', '#d1392b',
-            'colapso', '#6b0f1a',
-            '#8a8f98',
-          ],
-        ),
-      );
+      if (_capaCreada) {
+        // Ya existe la capa (filtro cambiado) — solo actualizar los datos.
+        await c.setGeoJsonSource('objetos_afectados', geojson);
+      } else {
+        await c.addGeoJsonSource('objetos_afectados', geojson);
+        _capaCreada = true;
+        await c.addCircleLayer(
+          'objetos_afectados',
+          'objetos_afectados_circulos',
+          CircleLayerProperties(
+            circleRadius: 7,
+            circleStrokeWidth: 2,
+            circleStrokeColor: '#ffffff',
+            circleColor: [
+              'match',
+              ['get', 'nivel_dano_preliminar'],
+              'sin_dano', '#2e8b57',
+              'leve', '#c9b400',
+              'moderado', '#e08a1e',
+              'severo', '#d1392b',
+              'colapso', '#6b0f1a',
+              '#8a8f98',
+            ],
+          ),
+        );
+      }
       setState(() => _estado = null);
     } catch (e) {
       setState(() => _estado = 'Sin conexión al backend');

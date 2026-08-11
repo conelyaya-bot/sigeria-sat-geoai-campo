@@ -5,7 +5,9 @@ import json
 
 from fastapi import APIRouter, HTTPException
 
-from app.db.database import generar_id_evento, generar_id_objeto, get_conn, now_iso, row_to_dict
+from app.db.database import (
+    generar_id_evento, generar_id_objeto, get_conn, new_uuid, now_iso, row_to_dict,
+)
 from app.schemas.schemas import EventoCrear, EventoOut, ObjetoAfectadoCrear, ObjetoAfectadoOut
 
 router = APIRouter(prefix="/api/eventos", tags=["1. Evento y objetos"])
@@ -64,9 +66,9 @@ def crear_objeto_afectado(payload: ObjetoAfectadoCrear):
                 recolector_nombre, recolector_documento, recolector_cargo, recolector_entidad,
                 informante_nombre, informante_documento, informante_parentesco, informante_telefono,
                 requiere_subsidio_arrendamiento, resumen_componentes_dano,
-                observaciones_tecnicas,
+                observaciones_tecnicas, personas_afectadas,
                 creado_por, creado_en, actualizado_en)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (id_objeto, payload.id_evento, payload.tipo_objeto, payload.estado_operativo,
              payload.nivel_dano_preliminar, payload.departamento, payload.barrio_vereda,
              payload.direccion, payload.recolector_nombre, payload.recolector_documento,
@@ -77,12 +79,21 @@ def crear_objeto_afectado(payload: ObjetoAfectadoCrear):
              else int(payload.requiere_subsidio_arrendamiento),
              payload.resumen_componentes_dano,
              payload.observaciones_tecnicas,
+             payload.personas_afectadas,
              payload.creado_por, ts, ts),
         )
         conn.execute(
             "INSERT INTO auditoria (tabla, id_registro, accion, usuario_id) VALUES (?,?,?,?)",
             ("objeto_afectado", id_objeto, "crear", payload.creado_por),
         )
+        # Detalle fila por fila de la lista de chequeo — habilita estadísticas
+        # reales de "qué componentes se dañan más" (no solo el resumen en texto).
+        if payload.componentes:
+            conn.executemany(
+                """INSERT INTO componente_dano_detalle (id_detalle, id_objeto, componente, severidad)
+                   VALUES (?,?,?,?)""",
+                [(new_uuid(), id_objeto, c.componente, c.severidad) for c in payload.componentes],
+            )
         row = conn.execute(
             "SELECT * FROM objeto_afectado WHERE id_objeto=?", (id_objeto,)
         ).fetchone()

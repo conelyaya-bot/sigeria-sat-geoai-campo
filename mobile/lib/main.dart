@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/como_funciona_screen.dart';
+import 'screens/estadisticas_screen.dart';
 import 'screens/mapa_screen.dart';
 import 'screens/nuevo_expediente_screen.dart';
 import 'services/sync_queue.dart';
@@ -202,6 +203,16 @@ class _MenuSigeria extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                   context, MaterialPageRoute(builder: (_) => MapaScreen(backendUrl: backendUrl)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text('Estadísticas'),
+            subtitle: const Text('Afectados, daños más frecuentes, registro en vivo'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => EstadisticasScreen(backendUrl: backendUrl)));
             },
           ),
           const Divider(),

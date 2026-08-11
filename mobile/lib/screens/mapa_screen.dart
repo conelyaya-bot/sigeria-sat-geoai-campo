@@ -5,6 +5,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
+import '../data/colombia_departamentos.dart';
+import '../data/colombia_municipios.dart';
 
 /// Mapa real de SIGERIA Campo — inspirado en la estructura de SW Maps
 /// (mapa base + galería de capas + señalización de los datos levantados):
@@ -42,6 +44,12 @@ class _MapaScreenState extends State<MapaScreen> {
   bool _cargandoUbicacion = false;
   String? _estado;
   List<dynamic> _features = []; // features del último GeoJSON cargado, para la ficha al tocar
+
+  // Filtro por departamento/municipio — para ver la malla de puntos de una
+  // sola zona en vez de todo el país mezclado (solo aplica al modo "en
+  // vivo general", que es el que trae TODOS los expedientes).
+  String? _filtroDepartamento;
+  MunicipioColombia? _filtroMunicipio;
 
   static const _estilos = {
     _Basemap.calle: 'styles/calle.json',
@@ -151,9 +159,42 @@ class _MapaScreenState extends State<MapaScreen> {
 
   bool get _esEnVivo => widget.backendUrl != null;
 
+  /// Solo el modo "malla general en vivo" (sin idEvento) admite filtro por
+  /// departamento/municipio — el modo de un solo evento ya está acotado.
+  bool get _admiteFiltro => widget.idEvento == null && widget.backendUrl != null;
+
+  bool _capaCreada = false;
+
   void _alCrearMapa(MapLibreMapController c) {
     _controller = c;
     c.onFeatureTapped.add(_alTocarFeature);
+  }
+
+  Uri _urlGeojsonGeneral() {
+    final params = <String, String>{};
+    if (_filtroDepartamento != null) params['departamento'] = _filtroDepartamento!;
+    if (_filtroMunicipio != null) params['municipio_divipola'] = _filtroMunicipio!.divipola;
+    return Uri.parse('${widget.backendUrl}/api/gis/geojson_general')
+        .replace(queryParameters: params.isEmpty ? null : params);
+  }
+
+  /// Vuelve a pedir los datos al backend con el filtro actual y actualiza la
+  /// capa YA creada en el mapa (sin recargar el estilo completo) — se llama
+  /// al elegir departamento/municipio en el panel de Capas.
+  Future<void> _recargarConFiltro() async {
+    final c = _controller;
+    if (c == null || !_capaCreada) return;
+    setState(() => _estado = 'Filtrando…');
+    try {
+      final resp = await http.get(_urlGeojsonGeneral()).timeout(const Duration(seconds: 10));
+      if (resp.statusCode != 200) throw Exception('Backend respondió ${resp.statusCode}');
+      final geojson = jsonDecode(resp.body) as Map<String, dynamic>;
+      _features = geojson['features'] as List<dynamic>? ?? [];
+      await c.setGeoJsonSource('objetos_afectados', geojson);
+      setState(() => _estado = null);
+    } catch (e) {
+      setState(() => _estado = 'No se pudo aplicar el filtro: $e');
+    }
   }
 
   Future<void> _alCargarEstilo() async {
@@ -171,9 +212,7 @@ class _MapaScreenState extends State<MapaScreen> {
         if (resp.statusCode != 200) throw Exception('Backend respondió ${resp.statusCode}');
         geojson = jsonDecode(resp.body) as Map<String, dynamic>;
       } else if (widget.backendUrl != null) {
-        final resp = await http
-            .get(Uri.parse('${widget.backendUrl}/api/gis/geojson_general'))
-            .timeout(const Duration(seconds: 10));
+        final resp = await http.get(_urlGeojsonGeneral()).timeout(const Duration(seconds: 10));
         if (resp.statusCode != 200) throw Exception('Backend respondió ${resp.statusCode}');
         geojson = jsonDecode(resp.body) as Map<String, dynamic>;
       } else {
@@ -185,6 +224,7 @@ class _MapaScreenState extends State<MapaScreen> {
 
       // Si el estilo se recargó (cambio de basemap), la fuente ya no existe: recrearla.
       await c.addGeoJsonSource('objetos_afectados', geojson);
+      _capaCreada = true;
       await c.addCircleLayer(
         'objetos_afectados',
         'objetos_afectados_circulos',
@@ -328,11 +368,74 @@ class _MapaScreenState extends State<MapaScreen> {
                   }
                 },
               ),
+              if (_admiteFiltro) ...[
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Filtrar malla de puntos por zona', style: TextStyle(color: Colors.grey)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: DropdownButtonFormField<String?>(
+                    isExpanded: true,
+                    initialValue: _filtroDepartamento,
+                    decoration: const InputDecoration(labelText: 'Departamento', isDense: true),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todos')),
+                      ...departamentosColombia.map(
+                          (d) => DropdownMenuItem(value: d['nombre'], child: Text(d['nombre']!))),
+                    ],
+                    onChanged: (v) {
+                      setState(() {
+                        _filtroDepartamento = v;
+                        _filtroMunicipio = null; // cambia la lista de municipios disponibles
+                      });
+                      setSheetState(() {});
+                      _recargarConFiltro();
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: DropdownButtonFormField<MunicipioColombia?>(
+                    isExpanded: true,
+                    initialValue: _filtroMunicipio,
+                    decoration: const InputDecoration(labelText: 'Municipio', isDense: true),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todos')),
+                      ...(_filtroDepartamento == null
+                              ? const <MunicipioColombia>[]
+                              : municipiosPorDepartamento[_codigoDepartamentoFiltro(_filtroDepartamento!)] ??
+                                  const <MunicipioColombia>[])
+                          .map((m) => DropdownMenuItem(value: m, child: Text(m.nombre))),
+                    ],
+                    onChanged: _filtroDepartamento == null
+                        ? null
+                        : (v) {
+                            setState(() => _filtroMunicipio = v);
+                            setSheetState(() {});
+                            _recargarConFiltro();
+                          },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  String? _codigoDepartamentoFiltro(String nombreDepartamento) {
+    for (final d in departamentosColombia) {
+      if (d['nombre'] == nombreDepartamento) return d['codigo'];
+    }
+    return null;
   }
 }
 

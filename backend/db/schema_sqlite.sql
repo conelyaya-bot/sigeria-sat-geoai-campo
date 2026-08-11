@@ -52,9 +52,25 @@ CREATE TABLE IF NOT EXISTS objeto_afectado (
     -- Espacio libre opcional: solo si quien evalúa es ingeniero/a y quiere
     -- detallar por escrito lo evidenciado. No reemplaza la lista de chequeo.
     observaciones_tecnicas TEXT,
+    -- Personas del hogar afectadas por el evento (sección 26: indicadores de
+    -- afectados) — se capturaba en el formulario pero no se guardaba.
+    personas_afectadas INTEGER,
     creado_por      TEXT,
     creado_en       TEXT NOT NULL DEFAULT (datetime('now')),
     actualizado_en  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Detalle fila por fila de la lista de chequeo de componentes (columnas,
+-- muros, cubierta, etc.) — antes solo se guardaba el resumen en texto
+-- (`objeto_afectado.resumen_componentes_dano`). Esta tabla permite calcular
+-- de verdad "qué componentes se dañan más" en estadísticas, no solo leer
+-- resúmenes uno por uno.
+CREATE TABLE IF NOT EXISTS componente_dano_detalle (
+    id_detalle      TEXT PRIMARY KEY,
+    id_objeto       TEXT NOT NULL REFERENCES objeto_afectado(id_objeto),
+    componente      TEXT NOT NULL,   -- id de mobile/lib/data/componentes_dano.dart (cimentacion, muros, ...)
+    severidad       TEXT NOT NULL,   -- no_aplica|sin_dano|leve|moderado|severo|colapso
+    creado_en       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS geometria (

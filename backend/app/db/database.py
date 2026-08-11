@@ -51,6 +51,7 @@ def _migrar_columnas_nuevas(conn: sqlite3.Connection) -> None:
     existe (SQLite no soporta "ADD COLUMN IF NOT EXISTS")."""
     migraciones = [
         ("objeto_afectado", "observaciones_tecnicas", "TEXT"),
+        ("objeto_afectado", "personas_afectadas", "INTEGER"),
     ]
     for tabla, columna, tipo in migraciones:
         try:

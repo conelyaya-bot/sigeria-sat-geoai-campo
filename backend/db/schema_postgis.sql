@@ -54,10 +54,25 @@ CREATE TABLE objeto_afectado (
     -- Espacio libre opcional: solo si quien evalúa es ingeniero/a y quiere
     -- detallar por escrito lo evidenciado. No reemplaza la lista de chequeo.
     observaciones_tecnicas TEXT,
+    -- Personas del hogar afectadas por el evento (sección 26: indicadores de
+    -- afectados) — se capturaba en el formulario pero no se guardaba.
+    personas_afectadas INTEGER,
     creado_por      UUID REFERENCES usuario(id_usuario),
     creado_en       TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Detalle fila por fila de la lista de chequeo de componentes — permite
+-- calcular de verdad "qué componentes se dañan más" en estadísticas.
+CREATE TABLE componente_dano_detalle (
+    id_detalle      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_objeto       TEXT NOT NULL REFERENCES objeto_afectado(id_objeto),
+    componente      TEXT NOT NULL,
+    severidad       TEXT NOT NULL CHECK (severidad IN
+                        ('no_aplica','sin_dano','leve','moderado','severo','colapso')),
+    creado_en       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_componente_dano_objeto ON componente_dano_detalle (id_objeto);
 
 CREATE TABLE geometria (
     id_geometria    UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -17,13 +17,15 @@ void main() {
     // Los 4 pasos viven en el menú lateral — hay que abrirlo para que se construya.
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.text('1. Evento y objeto'), findsOneWidget);
-    expect(find.text('2. EDAN básico adaptativo'), findsOneWidget);
-    expect(find.text('3. GIS — ubicación real'), findsOneWidget);
-    // "skipOffstage: false" porque este ítem queda más abajo del scroll del
-    // Drawer en el viewport del test — sigue en el árbol, solo no visible
-    // sin desplazar (comportamiento normal de un menú con varias entradas).
+    // "skipOffstage: false" porque, con la entrada "Estadísticas" agregada
+    // al menú, estos ítems quedan más abajo del scroll del Drawer en el
+    // viewport del test — siguen en el árbol, solo no visibles sin
+    // desplazar (comportamiento normal de un menú con varias entradas).
+    expect(find.text('1. Evento y objeto', skipOffstage: false), findsOneWidget);
+    expect(find.text('2. EDAN básico adaptativo', skipOffstage: false), findsOneWidget);
+    expect(find.text('3. GIS — ubicación real', skipOffstage: false), findsOneWidget);
     expect(find.text('4. Medición móvil', skipOffstage: false), findsOneWidget);
+    expect(find.text('Estadísticas', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('Nuevo expediente abre el Stepper unico con los 4 pasos',

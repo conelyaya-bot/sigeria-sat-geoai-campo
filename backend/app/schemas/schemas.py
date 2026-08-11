@@ -6,6 +6,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+SeveridadComponente = Literal["no_aplica", "sin_dano", "leve", "moderado", "severo", "colapso"]
+
 Fenomeno = Literal[
     "sismo", "inundacion", "deslizamiento", "vendaval",
     "incendio", "erosion_socavacion", "creciente_subita", "otro",
@@ -35,6 +37,14 @@ class EventoOut(EventoCrear):
     creado_en: str
 
 
+class ComponenteDanoItem(BaseModel):
+    """Una fila de la lista de chequeo (sección 8) — permite calcular de
+    verdad, en estadísticas, qué componentes se dañan más, en vez de leer
+    el resumen en texto uno por uno."""
+    componente: str
+    severidad: SeveridadComponente
+
+
 class ObjetoAfectadoCrear(BaseModel):
     id_evento: str
     tipo_objeto: str
@@ -60,6 +70,11 @@ class ObjetoAfectadoCrear(BaseModel):
     # Espacio libre opcional para quien evalúa SÍ sea ingeniero/a y quiera
     # detallar por escrito lo evidenciado — no reemplaza la lista de chequeo.
     observaciones_tecnicas: Optional[str] = None
+    personas_afectadas: Optional[int] = None
+    # Detalle fila por fila de la lista de chequeo (para estadísticas reales
+    # de "qué componentes se dañan más"). Opcional por compatibilidad con
+    # llamadas antiguas, pero el formulario móvil siempre lo envía.
+    componentes: Optional[list[ComponenteDanoItem]] = None
     creado_por: Optional[str] = None
 
 
@@ -83,6 +98,7 @@ class ObjetoAfectadoOut(BaseModel):
     requiere_subsidio_arrendamiento: Optional[bool] = None
     resumen_componentes_dano: Optional[str] = None
     observaciones_tecnicas: Optional[str] = None
+    personas_afectadas: Optional[int] = None
     creado_en: str
     actualizado_en: str
 

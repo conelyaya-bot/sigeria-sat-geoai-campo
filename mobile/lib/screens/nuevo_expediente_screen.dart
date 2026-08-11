@@ -712,6 +712,14 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         'observaciones_tecnicas': _observacionesTecnicasCtrl.text.trim().isEmpty
             ? null
             : _observacionesTecnicasCtrl.text.trim(),
+        'personas_afectadas': int.tryParse(_personasAfectadasCtrl.text.trim()),
+        // Detalle fila por fila — antes solo se mandaba el resumen en texto;
+        // esto es lo que permite calcular de verdad "qué componentes se
+        // dañan más" en la pantalla de Estadísticas.
+        'componentes': [
+          for (final c in componentesDano)
+            {'componente': c['id'], 'severidad': _severidadComponentes[c['id']]},
+        ],
         'departamento': _departamento,
         'barrio_vereda': _barrioCtrl.text.trim(),
         'direccion': _direccionCtrl.text.trim(),

@@ -211,6 +211,52 @@ Ver también `mobile/README_MOBILE.md` para el detalle técnico completo de esta
   4 módulos se movieron al menú lateral (ya reflejado en la Quinta vuelta). Responde a la
   sugerencia del usuario que había quedado sin contestar en la ronda anterior.
 
+## Séptima vuelta (2026-08-11) — zoom del mapa, cámara frontal/trasera, NP, observaciones técnicas y Estadísticas
+
+- **Zoom con botones +/-** en el mapa completo y en el mapa embebido de Inicio
+  (`ControlZoomMapa` en `mobile/lib/screens/mapa_screen.dart`) — no depende solo del
+  pellizco táctil. Atribución del basemap satelital recortada a un crédito simple (quedaba
+  cortada y con jerga técnica sobre "API key" que no le sirve al usuario de campo).
+- **Cámara: etiqueta frontal/trasera visible** en `CamaraCapturaScreen` — en una
+  computadora (Mac) siempre muestra "frontal" porque es la única cámara que el sistema
+  reporta (no hay trasera que elegir); en celular ya prefería trasera para fotos de campo.
+  No era un bug, era falta de contexto en pantalla — ahora se explica.
+- **"NP — No aplica"** agregado a la severidad de cada componente del checklist de daños
+  (`mobile/lib/data/componentes_dano.dart`) — para cuando ese elemento no existe en la
+  vivienda (p. ej. "Escaleras" en una casa de un piso). Excluido a propósito del cálculo
+  del nivel de daño y del resumen de componentes afectados.
+- **Observaciones técnicas (opcional)**: campo de texto libre al final del paso EDAN, solo
+  para cuando quien evalúa es ingeniero/a y quiere detallar por escrito lo evidenciado — no
+  reemplaza la lista de chequeo, que sigue siendo obligatoria para cualquier persona.
+  Columna nueva en backend (`observaciones_tecnicas`), migrada con `ALTER TABLE` en la base
+  ya existente, y agregada al reporte PDF.
+- **Pantalla de Estadísticas nueva** (`mobile/lib/screens/estadisticas_screen.dart`), con
+  todo el análisis hecho en Python en el backend, no en el cliente:
+  - `GET /api/estadisticas/general` ahora acepta `departamento`/`municipio_divipola` y
+    suma `total_personas_afectadas` (campo que el formulario ya capturaba pero **nunca se
+    enviaba al backend** — bug real encontrado al construir esta pantalla, corregido).
+  - `GET /api/estadisticas/componentes` (nuevo): "¿qué se daña más?" — cuenta por
+    componente constructivo y severidad, a partir de una tabla nueva
+    `componente_dano_detalle` (antes solo existía el resumen en texto, sin poder agregarlo
+    de verdad). Excluye `sin_dano`/`no_aplica` del ranking.
+  - `GET /api/estadisticas/registro_reciente` (nuevo): los últimos expedientes guardados,
+    más reciente primero — la "ventana de registro en vivo" que pidió el usuario. La
+    pantalla se refresca sola cada 20 s mientras está abierta (`Timer.periodic`).
+  - `GET /api/gis/geojson_general` ahora también acepta el filtro por zona, reusado tanto
+    en la pantalla de Estadísticas como en el panel de Capas del mapa completo.
+  - Verificado end-to-end con `curl`: crear expediente con `personas_afectadas` y
+    `componentes` (incluyendo `no_aplica`) → los 4 endpoints devuelven exactamente lo
+    esperado, con y sin filtro por departamento.
+- **Lección de esta ronda sobre el navegador de pruebas**: la entrega de clics
+  (`computer{action:"left_click"}`) se volvió errática de forma intermitente e
+  impredecible al verificar el Drawer/menú lateral — mismos clics, mismas coordenadas,
+  a veces navegaban y a veces no, incluso disparando el evento manualmente por
+  JavaScript (`PointerEvent`/`MouseEvent`). Confirmado que NO es un bug de la app:
+  `flutter analyze` (0 errores), `flutter test` (navegación real por `tester.tap()`,
+  2/2 pasa) y verificación directa de los 4 endpoints nuevos por `curl` fueron
+  concluyentes. Recomendado probar la pantalla de Estadísticas en un navegador real de
+  usuario (no el sandbox de pruebas), donde los clics sí son eventos nativos del SO.
+
 ## Próximos pasos reales (no aspiracionales)
 
 1. Instalar Flutter y compilar el scaffold móvil contra el backend ya funcional.
