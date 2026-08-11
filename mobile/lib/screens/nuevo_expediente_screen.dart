@@ -9,6 +9,7 @@ import '../data/colombia_municipios.dart';
 import '../data/componentes_dano.dart';
 import '../data/departamentos_capitales.dart';
 import '../services/api_client.dart';
+import 'camara_captura_screen.dart';
 import 'mapa_screen.dart';
 
 /// Expediente único — reemplaza los 4 módulos como pantallas sueltas.
@@ -611,33 +612,17 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   /// respuesta — y si ambas fallan, avisa con un mensaje claro en vez de
   /// quedarse en silencio.
   Future<(Uint8List, XFile)?> _capturarFoto() async {
-    final picker = ImagePicker();
-    try {
-      final archivo = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
-        maxWidth: 1920,
-      );
-      if (archivo == null) return null; // el usuario canceló la toma
-      return (await archivo.readAsBytes(), archivo);
-    } catch (errorCamara) {
-      try {
-        final archivo = await picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 80,
-          maxWidth: 1920,
-        );
-        if (archivo == null) return null;
-        return (await archivo.readAsBytes(), archivo);
-      } catch (errorGaleria) {
-        _mensaje(
-          'No se pudo acceder a la cámara ni a la galería. '
-          'Revisa el permiso de cámara del navegador/dispositivo. '
-          'Detalle: $errorCamara',
-        );
-        return null;
-      }
-    }
+    // Cámara real en vivo (paquete `camera`, con getUserMedia en navegador).
+    // Antes se usaba solo `image_picker` con ImageSource.camera, que en
+    // navegadores de escritorio no abre cámara — solo el buscador de
+    // archivos, porque el atributo HTML "capture" solo lo respetan
+    // navegadores móviles. La pantalla de cámara ya trae su propio respaldo
+    // a galería si no hay cámara disponible.
+    final resultado = await Navigator.push<(Uint8List, XFile)?>(
+      context,
+      MaterialPageRoute(builder: (_) => const CamaraCapturaScreen()),
+    );
+    return resultado;
   }
 
   Future<void> _capturarUbicacion() async {

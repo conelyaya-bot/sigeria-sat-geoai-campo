@@ -177,6 +177,40 @@ Ver también `mobile/README_MOBILE.md` para el detalle técnico completo de esta
   repositorio) — 2 commits, `.gitignore` cubre `.venv/`, `build/`, bases de datos locales
   y evidencias. Motivado por revisión del libro *Pro Git* que el usuario tenía en Descargas.
 
+## Sexta vuelta (2026-08-11) — cámara real (getUserMedia), mapa en vivo embebido en Inicio
+
+- **Cámara real, no buscador de archivos**: nueva pantalla `CamaraCapturaScreen`
+  (`mobile/lib/screens/camara_captura_screen.dart`) con el paquete `camera`/`camera_web` —
+  vista previa en vivo, botón de captura, cambio frontal/trasera, y respaldo explícito
+  "Elegir de la galería" si el dispositivo no tiene cámara o el permiso fue denegado.
+  Reemplaza el `image_picker` con `ImageSource.camera`, que en navegadores de escritorio
+  (Mac/Windows/Linux) **siempre** abre el buscador de archivos — es una limitación real
+  del navegador (el atributo HTML `capture` solo lo respetan navegadores móviles), no un
+  bug de la app; confirmado por búsqueda en web antes de construir la solución.
+- **Bug real encontrado y corregido en el camino**: tras agregar el paquete `camera`, un
+  primer intento de probar la cámara en el navegador mostró
+  `MissingPluginException(No implementation found for method availableCameras...)`.
+  La causa no era el navegador — era una **caché de build de Flutter desactualizada**:
+  `.dart_tool/flutter_build/` tenía dos versiones distintas de
+  `web_plugin_registrant.dart` (una vieja, sin `camera_web`, y una nueva ya correcta), y
+  el build servido estaba usando la vieja. Se corrigió con `flutter clean` + `flutter pub
+  get` + `flutter build web` — reconstrucción limpia, un solo registrant, ya con
+  `CameraPlugin.registerWith(registrar)` incluido. Verificado leyendo el JS generado y
+  confirmando el registrant único antes de volver a probar.
+- **Verificación honesta en este entorno**: al pedir la cámara ya no aparece la excepción
+  anterior — ahora la app pide permiso real de cámara (`getUserMedia`) y este navegador de
+  pruebas (sandbox) la bloquea por política, mostrando
+  `CameraException(CameraAccessDenied, ...)` con el botón de respaldo a la galería
+  funcionando. Es exactamente el comportamiento honesto que el código ya contemplaba — en
+  un navegador normal de usuario (Chrome/Safari/Firefox) o en el teléfono, el permiso se
+  pedirá igual y, si se concede, la vista previa en vivo funcionará.
+- **Mapa en vivo movido al espacio principal de Inicio**: nuevo widget
+  `MapaVivoEmbed` (`mobile/lib/widgets/mapa_vivo_embed.dart`) — el espacio que antes
+  ocupaban las 4 tarjetas de módulos ahora muestra el mapa satelital real con la malla de
+  puntos creciendo, tocable igual que el mapa completo (abre la misma ficha con foto). Los
+  4 módulos se movieron al menú lateral (ya reflejado en la Quinta vuelta). Responde a la
+  sugerencia del usuario que había quedado sin contestar en la ronda anterior.
+
 ## Próximos pasos reales (no aspiracionales)
 
 1. Instalar Flutter y compilar el scaffold móvil contra el backend ya funcional.

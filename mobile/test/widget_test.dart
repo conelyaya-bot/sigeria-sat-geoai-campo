@@ -11,10 +11,19 @@ void main() {
 
     expect(find.text('SIGERIA Campo'), findsOneWidget);
     expect(find.text('Nuevo expediente (vivienda o familia afectada)'), findsOneWidget);
+    // El mapa en vivo ocupa el espacio principal de Inicio.
+    expect(find.text('Mapa en vivo — malla de puntos'), findsOneWidget);
+
+    // Los 4 pasos viven en el menú lateral — hay que abrirlo para que se construya.
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
     expect(find.text('1. Evento y objeto'), findsOneWidget);
     expect(find.text('2. EDAN básico adaptativo'), findsOneWidget);
     expect(find.text('3. GIS — ubicación real'), findsOneWidget);
-    expect(find.text('4. Medición móvil'), findsOneWidget);
+    // "skipOffstage: false" porque este ítem queda más abajo del scroll del
+    // Drawer en el viewport del test — sigue en el árbol, solo no visible
+    // sin desplazar (comportamiento normal de un menú con varias entradas).
+    expect(find.text('4. Medición móvil', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('Nuevo expediente abre el Stepper unico con los 4 pasos',

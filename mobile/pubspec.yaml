@@ -23,7 +23,11 @@ dependencies:
   geolocator: ^12.0.0
   # Sensores (pendiente/inclinación, rumbo) — sección 11 del documento base
   sensors_plus: ^5.0.1
-  # Cámara / evidencia
+  # Cámara / evidencia — vista en vivo real (funciona igual en Mac/Android/
+  # iPhone/navegador vía getUserMedia; el atributo HTML "capture" que usa
+  # image_picker en solitario NO abre cámara en navegadores de escritorio,
+  # por eso se agrega `camera` para tener una vista en vivo de verdad).
+  camera: ^0.12.0
   image_picker: ^1.1.2
   # Utilidades
   uuid: ^4.4.0

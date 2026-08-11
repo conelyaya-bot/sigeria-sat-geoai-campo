@@ -239,7 +239,7 @@ class _MapaScreenState extends State<MapaScreen> {
         minChildSize: 0.3,
         maxChildSize: 0.9,
         expand: false,
-        builder: (ctx, scrollController) => _FichaObjeto(
+        builder: (ctx, scrollController) => FichaObjeto(
           properties: p,
           backendUrl: widget.backendUrl,
           etiquetasSeveridad: _etiquetasSeveridad,
@@ -329,13 +329,13 @@ class _MapaScreenState extends State<MapaScreen> {
 /// Ficha que se abre al tocar un punto del mapa: datos del objeto afectado +
 /// foto real (si el backend está disponible y la evidencia se guardó con
 /// contenido, ver backend/app/routers/edan.py:descargar_evidencia).
-class _FichaObjeto extends StatefulWidget {
+class FichaObjeto extends StatefulWidget {
   final Map<String, dynamic> properties;
   final String? backendUrl;
   final Map<String?, String> etiquetasSeveridad;
   final ScrollController scrollController;
 
-  const _FichaObjeto({
+  const FichaObjeto({
     required this.properties,
     required this.backendUrl,
     required this.etiquetasSeveridad,
@@ -343,10 +343,10 @@ class _FichaObjeto extends StatefulWidget {
   });
 
   @override
-  State<_FichaObjeto> createState() => _FichaObjetoState();
+  State<FichaObjeto> createState() => FichaObjetoState();
 }
 
-class _FichaObjetoState extends State<_FichaObjeto> {
+class FichaObjetoState extends State<FichaObjeto> {
   List<dynamic> _fotos = [];
   bool _cargandoFotos = true;
 
