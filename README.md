@@ -257,6 +257,52 @@ Ver también `mobile/README_MOBILE.md` para el detalle técnico completo de esta
   concluyentes. Recomendado probar la pantalla de Estadísticas en un navegador real de
   usuario (no el sandbox de pruebas), donde los clics sí son eventos nativos del SO.
 
+## Octava vuelta (2026-08-11) — publicado en GitHub + Drive por departamento
+
+- **Repositorio privado en GitHub**: `https://github.com/conelyaya-bot/sigeria-sat-geoai-campo`
+  (código completo, `git push` real, verificado listando el contenido del repo por API).
+  Publicarlo requirió autenticar `gh` CLI con OAuth (flujo de dispositivo) — el paso que
+  más costó no fue el código sino la verificación en dos pasos (2FA) de GitHub Mobile,
+  que hay que aprobar desde el teléfono antes de que el token quede activo.
+
+### Vincular Google Drive por departamento (sin credenciales de Google Cloud)
+
+La subida automática de fotos a Drive vía la API de Google requiere un proyecto de Google
+Cloud con credenciales — eso lo tiene que crear cada organización, no se puede automatizar
+desde aquí (ver Tercera vuelta). Pero hay una forma real de "vincular" Drive **sin ninguna
+API**: usando **Google Drive para escritorio** (la app oficial de Google que sincroniza una
+carpeta del computador con Drive) y apuntando el backend a esa carpeta.
+
+**Pasos para que cualquier departamento de gestión del riesgo use su propio Drive:**
+
+1. Instalar [Google Drive para escritorio](https://www.google.com/drive/download/) en el
+   computador donde corre el backend, con la cuenta de Google de ese departamento.
+2. Dentro de su Drive, crear una carpeta, p. ej. `SIGERIA - Expedientes - <Departamento>`.
+   Drive la sincroniza sola a una ruta local (en Mac, algo como
+   `~/Library/CloudStorage/GoogleDrive-<correo>/Mi unidad/SIGERIA - Expedientes - Chocó`).
+3. Arrancar el backend con la variable de entorno apuntando a esa ruta:
+   ```bash
+   export SIGERIA_CARPETA_EVIDENCIAS="/ruta/a/esa/carpeta/sincronizada"
+   export SIGERIA_DB_PATH="/ruta/a/esa/carpeta/sincronizada/sigeria_local.db"
+   uvicorn app.main:app --host 0.0.0.0 --port 8010
+   ```
+4. Desde ese momento, cada foto de evidencia que la app guarde queda en esa carpeta —
+   y Google Drive la sube sola, sin que el backend sepa nada de la API de Drive.
+
+Esto significa que **cada departamento puede tener su propio SIGERIA aislado**, con sus
+propios datos en su propio Drive, corriendo la misma base de código — sin pedirle a nadie
+credenciales de Google Cloud ni tocar una sola línea de Python. Es el mismo principio que
+ya se usaba para `SIGERIA_DB_PATH` (la base de datos también es configurable así desde la
+Segunda vuelta), extendido ahora a las fotos.
+
+**Limitación honesta**: esto solo sincroniza *archivos*, no da un enlace clicable a Drive
+dentro de la app todavía — la persona debe abrir Drive por su cuenta para ver la carpeta.
+Un enlace directo dentro de la app (botón "Ver en Drive") requeriría guardar la URL de la
+carpeta como config y mostrarla en el menú — queda anotado como mejora futura, no
+implementada aún porque no había una carpeta de Drive real conectada a este backend para
+probarlo de verdad (solo la carpeta creada a mano en la Tercera vuelta, sin backend
+conectado a ella).
+
 ## Próximos pasos reales (no aspiracionales)
 
 1. Instalar Flutter y compilar el scaffold móvil contra el backend ya funcional.

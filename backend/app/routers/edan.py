@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -12,7 +13,17 @@ from app.schemas.schemas import EvidenciaCrear, EvidenciaOut, NecesidadCrear, Ne
 
 router = APIRouter(prefix="/api/edan", tags=["2. EDAN básico adaptativo"])
 
-CARPETA_EVIDENCIAS = BASE_DIR / "workspace" / "evidencias"
+# Carpeta donde quedan las fotos reales de cada evidencia. Por defecto vive
+# dentro del proyecto (workspace/evidencias/) — pero se puede apuntar a
+# CUALQUIER carpeta local con la variable de entorno SIGERIA_CARPETA_EVIDENCIAS.
+# Esto es lo que permite "vincular Drive" sin credenciales de Google Cloud:
+# si esa ruta es una carpeta sincronizada por "Google Drive para escritorio"
+# (o Drive File Stream), todo lo que el backend guarde ahí sube solo a Drive.
+# Cada departamento que adopte SIGERIA puede así usar SU PROPIO Drive, sin
+# tocar código — ver README.md, sección "Vincular Google Drive por departamento".
+CARPETA_EVIDENCIAS = Path(
+    os.environ.get("SIGERIA_CARPETA_EVIDENCIAS", str(BASE_DIR / "workspace" / "evidencias"))
+)
 CARPETA_EVIDENCIAS.mkdir(parents=True, exist_ok=True)
 
 
