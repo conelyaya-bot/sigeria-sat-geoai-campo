@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
-import '../screens/mapa_screen.dart' show FichaObjeto;
+import '../screens/mapa_screen.dart' show FichaObjeto, ControlZoomMapa;
 
 /// Mapa en vivo embebido en la pantalla principal — a pedido del usuario:
 /// "hacer visible en ese espacio el mapa de llenado en tiempo real donde se
@@ -61,11 +61,21 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
                 visualDensity: VisualDensity.compact,
               ),
             ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: ControlZoomMapa(onAcercar: _acercar, onAlejar: _alejar),
+            ),
           ],
         ),
       ),
     );
   }
+
+  Future<void> _acercar() =>
+      _controller?.animateCamera(CameraUpdate.zoomIn()) ?? Future.value();
+  Future<void> _alejar() =>
+      _controller?.animateCamera(CameraUpdate.zoomOut()) ?? Future.value();
 
   Future<void> _cargar() async {
     final c = _controller;

@@ -128,10 +128,20 @@ class _MapaScreenState extends State<MapaScreen> {
               label: const Text('Capas'),
             ),
           ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: ControlZoomMapa(onAcercar: _acercar, onAlejar: _alejar),
+          ),
         ],
       ),
     );
   }
+
+  // Botones +/- para acercar o alejar el mapa — a petición del usuario, para
+  // no depender solo del gesto de pellizco (pinch) en pantallas táctiles.
+  Future<void> _acercar() => _controller?.animateCamera(CameraUpdate.zoomIn()) ?? Future.value();
+  Future<void> _alejar() => _controller?.animateCamera(CameraUpdate.zoomOut()) ?? Future.value();
 
   String get _tituloMapa {
     if (widget.idEvento != null) return 'Georreferenciación en tiempo real';
@@ -321,6 +331,41 @@ class _MapaScreenState extends State<MapaScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Par de botones grandes +/- para acercar o alejar el mapa con un toque —
+/// no todos los dispositivos de campo tienen pantalla táctil con pellizco
+/// confiable, y el requisito no funcional del proyecto pide botones grandes
+/// de alto contraste (ver comentario en `main.dart`).
+class ControlZoomMapa extends StatelessWidget {
+  final VoidCallback onAcercar;
+  final VoidCallback onAlejar;
+  const ControlZoomMapa({required this.onAcercar, required this.onAlejar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
+      elevation: 2,
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Acercar',
+            onPressed: onAcercar,
+          ),
+          const Divider(height: 1),
+          IconButton(
+            icon: const Icon(Icons.remove),
+            tooltip: 'Alejar',
+            onPressed: onAlejar,
+          ),
+        ],
       ),
     );
   }
