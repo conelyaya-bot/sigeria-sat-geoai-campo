@@ -158,6 +158,12 @@ def reporte_pdf(id_objeto: str):
          {1: "Sí", 0: "No", None: "Sin evaluar"}.get(objeto.get("requiere_subsidio_arrendamiento"), "Sin evaluar")],
     ], anchos=[6 * cm, 10.5 * cm]))
 
+    if objeto.get("observaciones_tecnicas"):
+        elementos.append(Paragraph("Observaciones técnicas (ingeniero/a)", subtitulo))
+        elementos.append(_tabla(
+            [["Detalle", objeto["observaciones_tecnicas"]]], anchos=[6 * cm, 10.5 * cm]
+        ))
+
     # --- Necesidades ---
     if datos["necesidades"]:
         elementos.append(Paragraph("Necesidades registradas", subtitulo))

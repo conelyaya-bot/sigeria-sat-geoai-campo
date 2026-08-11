@@ -64,8 +64,9 @@ def crear_objeto_afectado(payload: ObjetoAfectadoCrear):
                 recolector_nombre, recolector_documento, recolector_cargo, recolector_entidad,
                 informante_nombre, informante_documento, informante_parentesco, informante_telefono,
                 requiere_subsidio_arrendamiento, resumen_componentes_dano,
+                observaciones_tecnicas,
                 creado_por, creado_en, actualizado_en)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (id_objeto, payload.id_evento, payload.tipo_objeto, payload.estado_operativo,
              payload.nivel_dano_preliminar, payload.departamento, payload.barrio_vereda,
              payload.direccion, payload.recolector_nombre, payload.recolector_documento,
@@ -75,6 +76,7 @@ def crear_objeto_afectado(payload: ObjetoAfectadoCrear):
              None if payload.requiere_subsidio_arrendamiento is None
              else int(payload.requiere_subsidio_arrendamiento),
              payload.resumen_componentes_dano,
+             payload.observaciones_tecnicas,
              payload.creado_por, ts, ts),
         )
         conn.execute(

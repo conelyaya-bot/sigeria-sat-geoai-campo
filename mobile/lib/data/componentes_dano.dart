@@ -24,7 +24,15 @@ const List<Map<String, String>> componentesDano = [
 /// `nivel_dano_preliminar` (sin_dano|leve|moderado|severo|colapso) pero con
 /// etiquetas que cualquier persona entiende sin ser ingeniera — referencia
 /// conceptual NSR-10 (daño no estructural / estructural / colapso).
+///
+/// `no_aplica` (NP) es distinto a "sin daño": no es un nivel de gravedad,
+/// es que ese componente no existe en esta vivienda en particular (p. ej.
+/// "Escaleras" en una casa de un solo piso) — a pedido del usuario, para no
+/// obligar a calificar algo que físicamente no está. Por eso NO entra en
+/// `ordenSeveridad`: `_calcularNivelDano()` y `_resumenComponentesDano()` en
+/// `nuevo_expediente_screen.dart` lo excluyen explícitamente del cálculo.
 const List<Map<String, String>> severidadComponente = [
+  {'valor': 'no_aplica', 'etiqueta': 'NP — No aplica (no existe en esta vivienda)'},
   {'valor': 'sin_dano', 'etiqueta': 'Sin daño visible'},
   {'valor': 'leve', 'etiqueta': 'Leve (grietas finas, cosmético)'},
   {'valor': 'moderado', 'etiqueta': 'Parcial — no estructural'},
@@ -33,4 +41,5 @@ const List<Map<String, String>> severidadComponente = [
 ];
 
 /// Orden de gravedad para calcular el peor caso (índice mayor = más grave).
+/// `no_aplica` queda fuera a propósito — no es un nivel de daño.
 const List<String> ordenSeveridad = ['sin_dano', 'leve', 'moderado', 'severo', 'colapso'];

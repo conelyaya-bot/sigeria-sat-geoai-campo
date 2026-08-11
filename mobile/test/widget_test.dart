@@ -64,6 +64,8 @@ void main() {
     expect(find.text('Cubierta / techo'), findsOneWidget);
     expect(find.text('Nivel de daño preliminar (calculado)'), findsOneWidget);
     expect(find.text('Descripción del daño'), findsNothing); // ya no existe texto libre
+    // Espacio libre opcional para ingenieros — no reemplaza la lista de chequeo.
+    expect(find.text('Observaciones técnicas (opcional)'), findsOneWidget);
 
     // Avanza al paso 3 (GIS) — el mini-mapa debe construirse sin reventar.
     final siguiente2 = find.text('Siguiente').first;

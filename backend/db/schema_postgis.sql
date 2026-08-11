@@ -51,6 +51,9 @@ CREATE TABLE objeto_afectado (
     requiere_subsidio_arrendamiento BOOLEAN,
     -- Resumen legible de la lista de chequeo por componente (sección 8)
     resumen_componentes_dano TEXT,
+    -- Espacio libre opcional: solo si quien evalúa es ingeniero/a y quiere
+    -- detallar por escrito lo evidenciado. No reemplaza la lista de chequeo.
+    observaciones_tecnicas TEXT,
     creado_por      UUID REFERENCES usuario(id_usuario),
     creado_en       TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en  TIMESTAMPTZ NOT NULL DEFAULT now()

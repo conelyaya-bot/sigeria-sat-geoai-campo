@@ -145,12 +145,53 @@ class _CamaraCapturaScreenState extends State<CamaraCapturaScreen> {
             children: [
               Positioned.fill(child: CameraPreview(_controller!)),
               Positioned(
+                top: 12,
+                left: 12,
+                child: _etiquetaCamara(),
+              ),
+              Positioned(
                 bottom: 24,
                 child: _botonCaptura(),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Nombre legible de la cámara activa — organiza frontal/trasera para que
+  /// quien levanta el dato sepa cuál está viendo, en vez de adivinar.
+  ///
+  /// La preferencia por trasera (ver `_iniciar`) ya aplica igual en celular:
+  /// ahí sí existen las dos y arranca en trasera (mejor para fotografiar la
+  /// fachada). En un computador (como al probar en Mac) el sistema solo
+  /// reporta UNA cámara y la marca como "frontal" aunque físicamente sea la
+  /// única webcam — no hay trasera que elegir; por eso en Mac siempre se ve
+  /// "frontal", es la cámara real del equipo, no un error de la app.
+  String get _etiquetaCamaraActual {
+    if (_camaras.isEmpty) return 'Cámara';
+    switch (_camaras[_indiceCamaraActual].lensDirection) {
+      case CameraLensDirection.back:
+        return 'Cámara trasera';
+      case CameraLensDirection.front:
+        return 'Cámara frontal';
+      case CameraLensDirection.external:
+        return 'Cámara externa';
+    }
+  }
+
+  Widget _etiquetaCamara() {
+    final unicaDisponible = _camaras.length <= 1;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        unicaDisponible ? '$_etiquetaCamaraActual (única en este dispositivo)' : _etiquetaCamaraActual,
+        style: const TextStyle(color: Colors.white, fontSize: 12),
       ),
     );
   }

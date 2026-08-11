@@ -40,6 +40,24 @@ def init_db() -> None:
     """Crea el esquema si no existe. Llamar al arrancar la app."""
     with _connect() as conn:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        _migrar_columnas_nuevas(conn)
+
+
+def _migrar_columnas_nuevas(conn: sqlite3.Connection) -> None:
+    """`CREATE TABLE IF NOT EXISTS` no agrega columnas a una tabla que ya
+    existía de una corrida anterior — si se agrega un campo nuevo al schema
+    después de que la base ya se creó (como `observaciones_tecnicas`), hay
+    que migrarla a mano con ALTER TABLE. Se ignora el error si la columna ya
+    existe (SQLite no soporta "ADD COLUMN IF NOT EXISTS")."""
+    migraciones = [
+        ("objeto_afectado", "observaciones_tecnicas", "TEXT"),
+    ]
+    for tabla, columna, tipo in migraciones:
+        try:
+            conn.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e).lower():
+                raise
 
 
 @contextmanager

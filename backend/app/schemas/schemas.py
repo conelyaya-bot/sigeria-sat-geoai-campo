@@ -57,6 +57,9 @@ class ObjetoAfectadoCrear(BaseModel):
     informante_telefono: Optional[str] = None
     requiere_subsidio_arrendamiento: Optional[bool] = None
     resumen_componentes_dano: Optional[str] = None
+    # Espacio libre opcional para quien evalúa SÍ sea ingeniero/a y quiera
+    # detallar por escrito lo evidenciado — no reemplaza la lista de chequeo.
+    observaciones_tecnicas: Optional[str] = None
     creado_por: Optional[str] = None
 
 
@@ -79,6 +82,7 @@ class ObjetoAfectadoOut(BaseModel):
     informante_telefono: Optional[str] = None
     requiere_subsidio_arrendamiento: Optional[bool] = None
     resumen_componentes_dano: Optional[str] = None
+    observaciones_tecnicas: Optional[str] = None
     creado_en: str
     actualizado_en: str
 

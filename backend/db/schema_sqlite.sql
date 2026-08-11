@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS objeto_afectado (
     -- fila queda para las tablas Componente/Daño de fase 3 (roadmap); esto
     -- documenta ya la selección sin volver a pedir texto libre.
     resumen_componentes_dano TEXT,
+    -- Espacio libre opcional: solo si quien evalúa es ingeniero/a y quiere
+    -- detallar por escrito lo evidenciado. No reemplaza la lista de chequeo.
+    observaciones_tecnicas TEXT,
     creado_por      TEXT,
     creado_en       TEXT NOT NULL DEFAULT (datetime('now')),
     actualizado_en  TEXT NOT NULL DEFAULT (datetime('now'))

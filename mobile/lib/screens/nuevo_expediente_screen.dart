@@ -74,6 +74,11 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   };
   bool? _requiereSubsidioArrendamiento;
   final _personasAfectadasCtrl = TextEditingController();
+  // Espacio libre opcional — si quien levanta el dato SÍ es ingeniero/a,
+  // puede detallar aquí lo evidenciado técnicamente. No reemplaza la lista
+  // de chequeo (que sigue siendo obligatoria y la que usa cualquier
+  // persona); es un anexo adicional, a pedido del usuario.
+  final _observacionesTecnicasCtrl = TextEditingController();
 
   // --- Paso 3: mini-mapa de georreferenciación ---
   MapLibreMapController? _miniMapController;
@@ -308,6 +313,26 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           groupValue: _requiereSubsidioArrendamiento,
           onChanged: (v) => setState(() => _requiereSubsidioArrendamiento = v),
         ),
+        const Divider(height: 32),
+        const Text('Observaciones técnicas (opcional)',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        const Text(
+          'Espacio adicional solo si quien evalúa es ingeniero/a y quiere '
+          'detallar por escrito lo evidenciado en la vivienda. No reemplaza '
+          'la lista de chequeo de arriba, que sigue siendo obligatoria.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _observacionesTecnicasCtrl,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Ej.: fisuras diagonales en muro sur, ancho aprox. 3 mm, '
+                'compatibles con esfuerzo cortante…',
+            border: OutlineInputBorder(),
+          ),
+        ),
       ],
     );
   }
@@ -339,9 +364,13 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
 
   /// Toma el componente más grave marcado — así el nivel de daño preliminar
   /// no se vuelve a preguntar aparte, sale solo de la lista de chequeo.
+  /// `no_aplica` (NP) se ignora a propósito: no es un nivel de gravedad, es
+  /// que el componente no existe en esta vivienda, así que no debe pesar en
+  /// el cálculo del peor caso.
   String _calcularNivelDano() {
     var peor = 'sin_dano';
     for (final v in _severidadComponentes.values) {
+      if (v == 'no_aplica') continue;
       if (ordenSeveridad.indexOf(v) > ordenSeveridad.indexOf(peor)) peor = v;
     }
     return peor;
@@ -349,9 +378,12 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
 
   /// Texto legible generado automáticamente a partir de la lista de chequeo
   /// (reemplaza la descripción libre que antes había que redactar a mano).
+  /// Excluye tanto "sin daño" como "no aplica" — ninguno de los dos es un
+  /// componente afectado.
   String _resumenComponentesDano() {
     final afectados = componentesDano.where(
-      (c) => _severidadComponentes[c['id']] != 'sin_dano',
+      (c) => _severidadComponentes[c['id']] != 'sin_dano' &&
+          _severidadComponentes[c['id']] != 'no_aplica',
     );
     if (afectados.isEmpty) return 'Sin componentes con daño marcado.';
     return afectados.map((c) {
@@ -677,6 +709,9 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         'estado_operativo': _estadoOperativo,
         'nivel_dano_preliminar': _calcularNivelDano(),
         'resumen_componentes_dano': _resumenComponentesDano(),
+        'observaciones_tecnicas': _observacionesTecnicasCtrl.text.trim().isEmpty
+            ? null
+            : _observacionesTecnicasCtrl.text.trim(),
         'departamento': _departamento,
         'barrio_vereda': _barrioCtrl.text.trim(),
         'direccion': _direccionCtrl.text.trim(),
