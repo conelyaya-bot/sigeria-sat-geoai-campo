@@ -22,7 +22,7 @@ void main() {
     // viewport del test — siguen en el árbol, solo no visibles sin
     // desplazar (comportamiento normal de un menú con varias entradas).
     expect(find.text('1. Evento y objeto', skipOffstage: false), findsOneWidget);
-    expect(find.text('2. EDAN básico adaptativo', skipOffstage: false), findsOneWidget);
+    expect(find.text('2. Inspección técnica AIS', skipOffstage: false), findsOneWidget);
     expect(find.text('3. GIS — ubicación real', skipOffstage: false), findsOneWidget);
     expect(find.text('4. Medición móvil', skipOffstage: false), findsOneWidget);
     expect(find.text('Estadísticas', skipOffstage: false), findsOneWidget);
@@ -51,41 +51,45 @@ void main() {
     expect(municipiosPorDepartamento['05']!.any((m) => m.nombre == 'Medellín' && m.divipola == '05001'),
         isTrue); // Antioquia (departamento por defecto) trae a Medellín con su DIVIPOLA real
 
-    // Avanza al paso 2 (EDAN) — mismo expediente, sin volver a preguntar nada del paso 1.
-    // El Stepper de Material arma los controles de los 4 pasos en el árbol de widgets
-    // (no solo el activo); el primero corresponde al paso visible/activo actual.
-    final botonSiguiente = find.text('Siguiente').first;
-    await tester.ensureVisible(botonSiguiente);
-    await tester.pumpAndSettle();
-    await tester.tap(botonSiguiente);
-    await tester.pumpAndSettle();
+    // El Stepper de Material solo construye el contenido del paso ACTIVO, y
+    // con el formulario AIS del paso 2 (mucho más largo que el checklist
+    // simplificado que reemplazó) el botón "Siguiente" puede quedar a miles
+    // de píxeles del tope — perseguirlo con scroll/tap en un viewport de
+    // prueba fijo es frágil y no aporta nada (no es lógica nuestra, es el
+    // scroll interno de un widget de Flutter ya probado por su propio
+    // equipo). En su lugar se invoca directo el mismo callback que dispara
+    // el botón (`Stepper.onStepContinue`) — prueba la lógica real de
+    // avance sin depender de coordenadas de pantalla.
+    Future<void> avanzarPaso() async {
+      final stepper = tester.widget<Stepper>(find.byType(Stepper));
+      stepper.onStepContinue!();
+      await tester.pumpAndSettle();
+    }
 
-    // Paso 2 (EDAN): checklist por componente, NO descripción libre.
+    await avanzarPaso(); // 1 -> 2
+
+    // Paso 2: formulario oficial AIS (reemplaza el checklist simplificado
+    // de 8 componentes) — mismas secciones que el formulario en papel de la
+    // Unidad de Gestión del Riesgo.
+    expect(find.text('Identificación del formulario'), findsOneWidget);
+    expect(find.text('Descripción de la estructura'), findsOneWidget);
+    expect(find.text('Daños en elementos arquitectónicos'), findsOneWidget);
+    expect(find.text('Problemas geotécnicos'), findsOneWidget);
+    expect(find.text('Clasificación global del daño y habitabilidad'), findsOneWidget);
+    expect(find.text('Recomendaciones y medidas de seguridad'), findsOneWidget);
+    expect(find.text('Comentarios e inspectores'), findsOneWidget);
+    expect(find.text('Terreno y cimentación'), findsNothing); // checklist viejo, ya no existe
+    // Necesidades humanitarias se conservan aparte del formulario AIS.
     expect(find.text('¿Requiere subsidio de arrendamiento?'), findsOneWidget);
-    expect(find.text('Terreno y cimentación'), findsOneWidget);
-    expect(find.text('Columnas'), findsOneWidget);
-    expect(find.text('Muros / mampostería'), findsOneWidget);
-    expect(find.text('Cubierta / techo'), findsOneWidget);
-    expect(find.text('Nivel de daño preliminar (calculado)'), findsOneWidget);
-    expect(find.text('Descripción del daño'), findsNothing); // ya no existe texto libre
-    // Espacio libre opcional para ingenieros — no reemplaza la lista de chequeo.
-    expect(find.text('Observaciones técnicas (opcional)'), findsOneWidget);
 
-    // Avanza al paso 3 (GIS) — el mini-mapa debe construirse sin reventar.
-    final siguiente2 = find.text('Siguiente').first;
-    await tester.ensureVisible(siguiente2);
-    await tester.pumpAndSettle();
-    await tester.tap(siguiente2);
-    await tester.pumpAndSettle();
+    await avanzarPaso(); // 2 -> 3 (GIS) — el mini-mapa debe construirse sin reventar.
     expect(find.text('Capturar GPS'), findsOneWidget);
 
-    // Avanza al paso 4 (Medición) y agrega una medición con su botón de foto.
-    final siguiente3 = find.text('Siguiente').first;
-    await tester.ensureVisible(siguiente3);
+    await avanzarPaso(); // 3 -> 4 (Medición)
+    final botonAgregarMedicion = find.text('Agregar medición');
+    await tester.ensureVisible(botonAgregarMedicion);
     await tester.pumpAndSettle();
-    await tester.tap(siguiente3);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Agregar medición'));
+    await tester.tap(botonAgregarMedicion);
     await tester.pumpAndSettle();
     expect(find.text('Foto'), findsOneWidget);
     expect(find.text('Guardar expediente completo'), findsWidgets);

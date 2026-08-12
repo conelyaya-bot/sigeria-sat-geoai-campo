@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.db.database import init_db
-from app.routers import edan, estadisticas, eventos, expedientes, gis, medicion
+from app.routers import edan, estadisticas, eventos, expedientes, gis, inspeccion_ais, medicion
 
 app = FastAPI(
     title="SIGERIA API",
@@ -49,6 +49,7 @@ app.include_router(gis.router)
 app.include_router(medicion.router)
 app.include_router(estadisticas.router)
 app.include_router(expedientes.router)
+app.include_router(inspeccion_ais.router)
 
 
 @app.on_event("startup")

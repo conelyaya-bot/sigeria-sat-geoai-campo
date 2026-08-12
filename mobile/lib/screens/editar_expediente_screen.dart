@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/colombia_departamentos.dart';
-import '../data/componentes_dano.dart';
+import '../data/inspeccion_ais_opciones.dart';
 import '../services/api_client.dart';
 import 'camara_captura_screen.dart';
 
@@ -41,11 +41,29 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
   final _informanteParentescoCtrl = TextEditingController();
   final _informanteTelCtrl = TextEditingController();
   final _personasAfectadasCtrl = TextEditingController();
-  final _observacionesTecnicasCtrl = TextEditingController();
   bool? _requiereSubsidioArrendamiento;
-  final Map<String, String> _severidadComponentes = {
-    for (final c in componentesDano) c['id']!: 'sin_dano',
-  };
+
+  // Inspección técnica AIS — mismos campos clave que el formulario oficial
+  // (ver nuevo_expediente_screen.dart para el formulario completo al
+  // crear). Aquí se editan los que más se corrigen después: clasificación,
+  // estructura y recomendaciones — no se repite el formulario de 50+
+  // campos completo por espacio, pero si hace falta corregir algo de
+  // identificación catastral/ubicación de la vía, se puede volver a crear
+  // una inspección desde cero.
+  String? _idInspeccionAis; // null = todavía no existe, el guardado la crea
+  String? _aisSistemaEstructural;
+  String? _aisTipoEntrepiso;
+  String? _aisAnioConstruccion;
+  String? _aisExisteColapso;
+  String? _danoMurosFachada;
+  String? _danoCubierta;
+  String? _danoColumnasMurosPortantes;
+  final Set<String> _instalacionesAfectadas = {};
+  final _pctDanoGlobalCtrl = TextEditingController();
+  final Set<String> _medidasSeguridad = {};
+  bool? _edificacionHabitada;
+  String? _huboMuertosHeridos;
+  final _comentariosAisCtrl = TextEditingController();
 
   Map<String, dynamic>? _ubicacion; // {lat, lon, precision_m} — solo si se recaptura
   bool _teniaUbicacion = false;
@@ -71,8 +89,8 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
       final api = ApiClient(baseUrl: widget.backendUrl);
       final datos = await api.get('/api/expedientes/${widget.idObjeto}/detalle');
       final o = datos['objeto_afectado'] as Map<String, dynamic>;
-      final componentes = (datos['componentes'] as List<dynamic>? ?? []);
       final geometrias = datos['geometrias'] as List<dynamic>? ?? [];
+      final ais = datos['inspeccion_ais'] as Map<String, dynamic>?;
       setState(() {
         _tipoObjeto = o['tipo_objeto'] ?? 'vivienda';
         _estadoOperativo = o['estado_operativo'] ?? 'sin_evaluar';
@@ -88,10 +106,24 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
         _informanteParentescoCtrl.text = o['informante_parentesco'] ?? '';
         _informanteTelCtrl.text = o['informante_telefono'] ?? '';
         _personasAfectadasCtrl.text = o['personas_afectadas']?.toString() ?? '';
-        _observacionesTecnicasCtrl.text = o['observaciones_tecnicas'] ?? '';
         _requiereSubsidioArrendamiento = o['requiere_subsidio_arrendamiento'];
-        for (final c in componentes) {
-          _severidadComponentes[c['componente']] = c['severidad'];
+        if (ais != null) {
+          _idInspeccionAis = ais['id_inspeccion'];
+          _aisSistemaEstructural = ais['sistema_estructural'];
+          _aisTipoEntrepiso = ais['tipo_entrepiso'];
+          _aisAnioConstruccion = ais['anio_construccion'];
+          _aisExisteColapso = ais['existe_colapso'];
+          _danoMurosFachada = ais['dano_muros_fachada'];
+          _danoCubierta = ais['dano_cubierta'];
+          _danoColumnasMurosPortantes = ais['dano_columnas_muros_portantes'];
+          _instalacionesAfectadas.addAll(
+              (ais['instalaciones_afectadas'] as List<dynamic>? ?? []).cast<String>());
+          _pctDanoGlobalCtrl.text = ais['pct_dano_global']?.toString() ?? '';
+          _medidasSeguridad.addAll(
+              (ais['medidas_seguridad'] as List<dynamic>? ?? []).cast<String>());
+          _edificacionHabitada = ais['edificacion_habitada'];
+          _huboMuertosHeridos = ais['hubo_muertos_heridos'];
+          _comentariosAisCtrl.text = ais['comentarios'] ?? '';
         }
         _fotosExistentes = (datos['evidencias'] as List<dynamic>)
             .where((e) => e['tipo'] == 'foto')
@@ -105,28 +137,6 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
         _cargando = false;
       });
     }
-  }
-
-  String _calcularNivelDano() {
-    var peor = 'sin_dano';
-    for (final v in _severidadComponentes.values) {
-      if (v == 'no_aplica') continue;
-      if (ordenSeveridad.indexOf(v) > ordenSeveridad.indexOf(peor)) peor = v;
-    }
-    return peor;
-  }
-
-  String _resumenComponentesDano() {
-    final afectados = componentesDano.where(
-      (c) => _severidadComponentes[c['id']] != 'sin_dano' &&
-          _severidadComponentes[c['id']] != 'no_aplica',
-    );
-    if (afectados.isEmpty) return 'Sin componentes con daño marcado.';
-    return afectados.map((c) {
-      final etiqueta = severidadComponente
-          .firstWhere((s) => s['valor'] == _severidadComponentes[c['id']])['etiqueta']!;
-      return '${c['nombre']}: $etiqueta';
-    }).join(' · ');
   }
 
   Future<void> _capturarUbicacion() async {
@@ -197,8 +207,6 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
       final payload = <String, dynamic>{
         'tipo_objeto': _tipoObjeto,
         'estado_operativo': _estadoOperativo,
-        'nivel_dano_preliminar': _calcularNivelDano(),
-        'resumen_componentes_dano': _resumenComponentesDano(),
         'departamento': _departamento,
         'barrio_vereda': _barrioCtrl.text.trim(),
         'direccion': _direccionCtrl.text.trim(),
@@ -212,12 +220,6 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
         'informante_telefono': _informanteTelCtrl.text.trim(),
         'requiere_subsidio_arrendamiento': _requiereSubsidioArrendamiento,
         'personas_afectadas': int.tryParse(_personasAfectadasCtrl.text.trim()),
-        'observaciones_tecnicas':
-            _observacionesTecnicasCtrl.text.trim().isEmpty ? null : _observacionesTecnicasCtrl.text.trim(),
-        'componentes': [
-          for (final c in componentesDano)
-            {'componente': c['id'], 'severidad': _severidadComponentes[c['id']]},
-        ],
       };
       if (_ubicacion != null) {
         payload['lat'] = _ubicacion!['lat'];
@@ -225,6 +227,32 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
         payload['precision_gnss_m'] = _ubicacion!['precision_m'];
       }
       await api.put('/api/expedientes/${widget.idObjeto}', payload);
+
+      // Inspección técnica AIS — PUT si ya existía (corrige la misma fila,
+      // el backend recalcula clasificación/habitabilidad y vuelve a
+      // sincronizar objeto_afectado.nivel_dano_preliminar), o POST si el
+      // expediente todavía no tenía ninguna inspección AIS.
+      final payloadAis = <String, dynamic>{
+        'id_objeto': widget.idObjeto,
+        'sistema_estructural': _aisSistemaEstructural,
+        'tipo_entrepiso': _aisTipoEntrepiso,
+        'anio_construccion': _aisAnioConstruccion,
+        'existe_colapso': _aisExisteColapso,
+        'dano_muros_fachada': _danoMurosFachada,
+        'dano_cubierta': _danoCubierta,
+        'dano_columnas_muros_portantes': _danoColumnasMurosPortantes,
+        'instalaciones_afectadas': _instalacionesAfectadas.toList(),
+        'pct_dano_global': double.tryParse(_pctDanoGlobalCtrl.text.replaceAll(',', '.').trim()),
+        'medidas_seguridad': _medidasSeguridad.toList(),
+        'edificacion_habitada': _edificacionHabitada,
+        'hubo_muertos_heridos': _huboMuertosHeridos,
+        'comentarios': _comentariosAisCtrl.text.trim(),
+      };
+      if (_idInspeccionAis != null) {
+        await api.put('/api/inspeccion-ais/$_idInspeccionAis', payloadAis);
+      } else {
+        await api.post('/api/inspeccion-ais', payloadAis);
+      }
 
       if (_fotoNuevaArchivo != null && _fotoNueva != null) {
         await api.post('/api/edan/evidencias', {
@@ -322,9 +350,47 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
         _campo(_informanteParentescoCtrl, 'Parentesco'),
         _campo(_informanteTelCtrl, 'Teléfono'),
         const Divider(height: 24),
-        const Text('Lista de chequeo de daños', style: TextStyle(fontWeight: FontWeight.bold)),
-        for (final c in componentesDano) _filaComponente(c),
+        const Text('Inspección técnica AIS', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'Campos más corregidos después de la captura inicial. Para editar '
+          'identificación catastral u otros datos del formulario completo, '
+          'hazlo desde un nuevo expediente.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         const SizedBox(height: 8),
+        _campoOpcionAis('Sistema estructural', _aisSistemaEstructural, sistemasEstructurales,
+            (v) => setState(() => _aisSistemaEstructural = v)),
+        _campoOpcionAis('Tipo de entrepiso', _aisTipoEntrepiso, tiposEntrepiso,
+            (v) => setState(() => _aisTipoEntrepiso = v)),
+        _campoOpcionAis('Año de construcción', _aisAnioConstruccion, aniosConstruccion,
+            (v) => setState(() => _aisAnioConstruccion = v)),
+        _campoOpcionAis('¿Existe colapso?', _aisExisteColapso, existeColapsoOpciones,
+            (v) => setState(() => _aisExisteColapso = v)),
+        _campoOpcionAis('Muros de fachada', _danoMurosFachada, gradoDanoAis,
+            (v) => setState(() => _danoMurosFachada = v)),
+        _campoOpcionAis('Cubierta', _danoCubierta, gradoDanoAis,
+            (v) => setState(() => _danoCubierta = v)),
+        _campoOpcionAis('Columnas o muros portantes', _danoColumnasMurosPortantes, gradoDanoAis,
+            (v) => setState(() => _danoColumnasMurosPortantes = v)),
+        _campoMultipleAis('Instalaciones afectadas', instalacionesOpciones, _instalacionesAfectadas),
+        _campo(_pctDanoGlobalCtrl, '% de daño global de la edificación',
+            teclado: const TextInputType.numberWithOptions(decimal: true)),
+        _campoMultipleAis('Medidas de seguridad', medidasSeguridadOpciones, _medidasSeguridad),
+        SwitchListTile(
+          dense: true,
+          title: const Text('Edificación habitada'),
+          value: _edificacionHabitada ?? false,
+          onChanged: (v) => setState(() => _edificacionHabitada = v),
+        ),
+        _campoOpcionAis('Hubo muertos o heridos', _huboMuertosHeridos, huboMuertosHeridosOpciones,
+            (v) => setState(() => _huboMuertosHeridos = v)),
+        TextFormField(
+          controller: _comentariosAisCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Comentarios', border: OutlineInputBorder()),
+        ),
+        const Divider(height: 24),
+        const Text('Necesidades humanitarias', style: TextStyle(fontWeight: FontWeight.bold)),
         _campo(_personasAfectadasCtrl, 'Personas afectadas', teclado: TextInputType.number),
         const Text('¿Requiere subsidio de arrendamiento?', style: TextStyle(fontWeight: FontWeight.bold)),
         RadioListTile<bool?>(
@@ -340,13 +406,6 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
           value: false,
           groupValue: _requiereSubsidioArrendamiento,
           onChanged: (v) => setState(() => _requiereSubsidioArrendamiento = v),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _observacionesTecnicasCtrl,
-          maxLines: 4,
-          decoration: const InputDecoration(
-              labelText: 'Observaciones técnicas', border: OutlineInputBorder()),
         ),
         const Divider(height: 24),
         const Text('Ubicación GPS', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -417,25 +476,48 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
     );
   }
 
-  Widget _filaComponente(Map<String, String> componente) {
-    final id = componente['id']!;
-    final valor = _severidadComponentes[id]!;
+  Widget _campoOpcionAis(String etiqueta, String? valor, List<Map<String, String>> opciones,
+      ValueChanged<String?> onChanged) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        isExpanded: true,
+        initialValue: valor,
+        decoration: InputDecoration(labelText: etiqueta, isDense: true, border: const OutlineInputBorder()),
+        items: opciones
+            .map((o) => DropdownMenuItem(value: o['valor'], child: Text(o['etiqueta']!)))
+            .toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _campoMultipleAis(
+      String etiqueta, List<Map<String, String>> opciones, Set<String> seleccionadas) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 3, child: Text(componente['nombre']!)),
-          Expanded(
-            flex: 3,
-            child: DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: valor,
-              decoration: const InputDecoration(isDense: true),
-              items: severidadComponente
-                  .map((s) => DropdownMenuItem(value: s['valor'], child: Text(s['etiqueta']!)))
-                  .toList(),
-              onChanged: (v) => setState(() => _severidadComponentes[id] = v!),
-            ),
+          Text(etiqueta, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: opciones.map((o) {
+              final seleccionado = seleccionadas.contains(o['valor']);
+              return FilterChip(
+                label: Text(o['etiqueta']!, style: const TextStyle(fontSize: 12)),
+                selected: seleccionado,
+                onSelected: (v) => setState(() {
+                  if (v) {
+                    seleccionadas.add(o['valor']!);
+                  } else {
+                    seleccionadas.remove(o['valor']);
+                  }
+                }),
+              );
+            }).toList(),
           ),
         ],
       ),

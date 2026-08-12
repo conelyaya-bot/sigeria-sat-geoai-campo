@@ -111,6 +111,123 @@ CREATE TABLE IF NOT EXISTS medicion (
     creado_en       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Inspección técnica AIS (Asociación Colombiana de Ingeniería Sísmica) —
+-- "Guía Técnica para la Inspección de Edificaciones Después de un Sismo",
+-- formulario oficial que usa la Unidad de Gestión del Riesgo (nacional y
+-- local). Reemplaza el checklist simplificado de 8 componentes que tenía
+-- SIGERIA antes — ahora la evaluación de daño estructural sigue EXACTAMENTE
+-- la estructura y terminología del formulario oficial, campo por campo,
+-- para que el dato levantado sea directamente utilizable/entregable ante
+-- esas entidades. Una fila por inspección (normalmente una por objeto, pero
+-- no se fuerza 1:1 por si se necesita una segunda inspección más adelante).
+CREATE TABLE IF NOT EXISTS inspeccion_ais (
+    id_inspeccion   TEXT PRIMARY KEY,
+    id_objeto       TEXT NOT NULL REFERENCES objeto_afectado(id_objeto),
+
+    -- Encabezado / identificación catastral
+    localidad               TEXT,
+    nombre_barrio            TEXT,
+    ident_catastral_barrio   TEXT,
+    ident_catastral_manzana  TEXT,
+    ident_catastral_predio   TEXT,
+    ident_catastral_construccion TEXT,
+    formulario_numero        TEXT,
+    inspeccion_tipo           TEXT,     -- exterior_interior | no_se_pudo_entrar
+
+    -- Identificación de la edificación
+    tipo_via                 TEXT,      -- carrera|calle|transv|diag|avda|otro
+    numero_via                TEXT,
+    nombre_edificacion        TEXT,
+    uso_predominante           TEXT,
+    uso_predominante_planta_baja TEXT,
+    niveles_sobre_terreno      INTEGER,
+    sotanos                     INTEGER,
+    pisos_total                  INTEGER,
+    dimension_frente_m            REAL,
+    dimension_fondo_m              REAL,
+
+    -- Descripción de la estructura
+    sistema_estructural            TEXT,
+    sistema_estructural_otro        TEXT,
+    tipo_entrepiso                   TEXT,
+    tipo_entrepiso_otro               TEXT,
+    anio_construccion                  TEXT,
+
+    -- Estado general de la edificación
+    existe_colapso                       TEXT,   -- no|parcial|total
+    desviacion_inclinacion                TEXT,   -- si|no|no_determinado
+    falla_asentamiento_cimentacion         TEXT,   -- si|no|no_determinado
+
+    -- Daños en elementos arquitectónicos (ninguno|leve|moderado|fuerte|severo)
+    dano_muros_fachada                       TEXT,
+    dano_muros_divisorios                     TEXT,
+    dano_cielo_rasos                           TEXT,
+    dano_cubierta                               TEXT,
+    dano_escaleras                               TEXT,
+    instalaciones_afectadas                       TEXT,  -- CSV: acueducto,alcantarillado,energia,gas
+    dano_instalaciones                             TEXT,
+    dano_tanques_elevados                           TEXT,
+
+    -- Problemas geotécnicos
+    falla_talud                                      TEXT,  -- no|puntual|general
+    asentamiento_subsidencia_licuacion                TEXT,  -- no|puntual|general
+
+    -- Daños en elementos estructurales (piso de mayor afectación)
+    nivel_entrepiso_mayor_dano                          TEXT,
+    dano_columnas_muros_portantes                        TEXT,
+    dano_vigas                                            TEXT,
+    dano_nudos_conexion                                    TEXT,
+    dano_entrepisos                                         TEXT,
+
+    -- Clasificación global
+    pct_dano_global                                          REAL,
+    clasificacion_global_dano                                 TEXT,  -- ninguno|leve|moderado|fuerte|severo
+    clasificacion_habitabilidad                                TEXT, -- verde|amarillo|naranja|rojo
+    existe_clasificacion_previa                                 INTEGER,
+    clasificacion_previa_cual                                    TEXT,
+
+    -- Recomendaciones y medidas de seguridad (listas separadas por coma)
+    requiere_visita_especializada                                 TEXT,
+    recomienda_intervencion                                        TEXT,
+    medidas_seguridad                                               TEXT,
+    desconectar_servicios                                            TEXT,
+    lugares_medidas_seguridad_texto                                   TEXT,
+
+    -- Condiciones preexistentes
+    calidad_construccion                                               TEXT,  -- buena|regular|mala
+    posicion_edificacion_manzana                                        TEXT,
+    configuracion_planta                                                 TEXT,
+    configuracion_altura                                                  TEXT,
+    configuracion_estructural                                              TEXT,
+    indicios_danos_sismos_anteriores                                        INTEGER,
+    hubo_reparacion                                                          TEXT,  -- total|parcial|ninguna
+
+    -- Efecto en los ocupantes
+    hubo_muertos_heridos                                                      TEXT,  -- no|si|no_se_sabe
+    numero_personas_fallecidas                                                 INTEGER,
+    numero_heridos                                                              INTEGER,
+
+    -- Ocupación de la edificación
+    edificacion_habitada                                                        INTEGER,
+    num_unidades_existentes                                                      INTEGER,
+    num_unidades_no_habitables                                                    INTEGER,
+
+    comentarios                                                                     TEXT,
+
+    -- Inspectores
+    codigo_comision                                                                TEXT,
+    numero_evaluadores                                                              INTEGER,
+    nombre_lider_comision                                                            TEXT,
+
+    -- Persona para contacto (en la vivienda) — se reutiliza
+    -- objeto_afectado.informante_* para no duplicar el mismo dato dos veces.
+
+    fecha_inspeccion       TEXT,
+    creado_por             TEXT,
+    creado_en              TEXT NOT NULL DEFAULT (datetime('now')),
+    actualizado_en         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS auditoria (
     id_auditoria    INTEGER PRIMARY KEY AUTOINCREMENT,
     tabla           TEXT NOT NULL,

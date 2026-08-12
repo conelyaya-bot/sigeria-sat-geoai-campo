@@ -6,8 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import '../data/colombia_departamentos.dart';
 import '../data/colombia_municipios.dart';
-import '../data/componentes_dano.dart';
 import '../data/departamentos_capitales.dart';
+import '../data/inspeccion_ais_opciones.dart';
 import '../services/api_client.dart';
 import 'camara_captura_screen.dart';
 import 'mapa_screen.dart';
@@ -90,18 +90,95 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   final _informanteParentescoCtrl = TextEditingController();
   final _informanteTelCtrl = TextEditingController();
 
-  // --- Paso 2: EDAN — lista de chequeo por componente, no texto libre ---
-  // id de componente -> severidad ('sin_dano' si no se ha tocado)
-  final Map<String, String> _severidadComponentes = {
-    for (final c in componentesDano) c['id']!: 'sin_dano',
-  };
+  // --- Paso 2: Inspección técnica AIS — formulario oficial de la Unidad de
+  // Gestión del Riesgo ("Guía Técnica para la Inspección de Edificaciones
+  // Después de un Sismo"), reemplaza el checklist simplificado que tenía
+  // SIGERIA antes. Mismos campos y opciones que el formulario en papel.
+  // Encabezado / identificación catastral
+  final _localidadCtrl = TextEditingController();
+  final _nombreBarrioAisCtrl = TextEditingController();
+  final _catastralBarrioCtrl = TextEditingController();
+  final _catastralManzanaCtrl = TextEditingController();
+  final _catastralPredioCtrl = TextEditingController();
+  final _catastralConstruccionCtrl = TextEditingController();
+  final _formularioNumeroCtrl = TextEditingController();
+  String? _aisInspeccionTipo;
+  // Identificación de la edificación
+  String? _aisTipoVia;
+  final _numeroViaCtrl = TextEditingController();
+  final _nombreEdificacionCtrl = TextEditingController();
+  String? _aisUsoPredominante;
+  String? _aisUsoPredominantePlantaBaja;
+  final _nivelesSobreTerrenoCtrl = TextEditingController();
+  final _sotanosCtrl = TextEditingController();
+  final _pisosTotalCtrl = TextEditingController();
+  final _dimFrenteCtrl = TextEditingController();
+  final _dimFondoCtrl = TextEditingController();
+  // Descripción de la estructura
+  String? _aisSistemaEstructural;
+  final _sistemaEstructuralOtroCtrl = TextEditingController();
+  String? _aisTipoEntrepiso;
+  final _tipoEntrepisoOtroCtrl = TextEditingController();
+  String? _aisAnioConstruccion;
+  // Estado general de la edificación
+  String? _aisExisteColapso;
+  String? _aisDesviacionInclinacion;
+  String? _aisFallaCimentacion;
+  // Daños en elementos arquitectónicos
+  String? _danoMurosFachada;
+  String? _danoMurosDivisorios;
+  String? _danoCieloRasos;
+  String? _danoCubierta;
+  String? _danoEscaleras;
+  final Set<String> _instalacionesAfectadas = {};
+  String? _danoInstalaciones;
+  String? _danoTanquesElevados;
+  // Problemas geotécnicos
+  String? _fallaTalud;
+  String? _asentamientoSubsidenciaLicuacion;
+  // Daños en elementos estructurales (piso de mayor afectación)
+  final _nivelEntrepisoMayorDanoCtrl = TextEditingController();
+  String? _danoColumnasMurosPortantes;
+  String? _danoVigas;
+  String? _danoNudosConexion;
+  String? _danoEntrepisos;
+  // Clasificación global
+  final _pctDanoGlobalCtrl = TextEditingController();
+  bool? _existeClasificacionPrevia;
+  final _clasificacionPreviaCualCtrl = TextEditingController();
+  // Recomendaciones y medidas de seguridad
+  final Set<String> _visitaEspecializada = {};
+  final Set<String> _intervencionRecomendada = {};
+  final Set<String> _medidasSeguridad = {};
+  final Set<String> _desconectarServicios = {};
+  final _lugaresMedidasSeguridadCtrl = TextEditingController();
+  // Condiciones preexistentes
+  String? _calidadConstruccion;
+  String? _posicionEdificacionManzana;
+  String? _configuracionPlanta;
+  String? _configuracionAltura;
+  String? _configuracionEstructural;
+  bool? _indiciosDanosSismosAnteriores;
+  String? _huboReparacion;
+  // Efecto en los ocupantes
+  String? _huboMuertosHeridos;
+  final _numeroFallecidosCtrl = TextEditingController();
+  final _numeroHeridosCtrl = TextEditingController();
+  // Ocupación de la edificación
+  bool? _edificacionHabitada;
+  final _numUnidadesExistentesCtrl = TextEditingController();
+  final _numUnidadesNoHabitablesCtrl = TextEditingController();
+  // Comentarios e inspectores
+  final _comentariosAisCtrl = TextEditingController();
+  final _codigoComisionCtrl = TextEditingController();
+  final _numeroEvaluadoresCtrl = TextEditingController();
+  final _nombreLiderComisionCtrl = TextEditingController();
+
+  // --- Necesidades humanitarias — no forman parte del formulario AIS (que
+  // solo evalúa seguridad estructural), pero siguen siendo datos valiosos de
+  // SIGERIA para la atención a la familia; se conservan aquí.
   bool? _requiereSubsidioArrendamiento;
   final _personasAfectadasCtrl = TextEditingController();
-  // Espacio libre opcional — si quien levanta el dato SÍ es ingeniero/a,
-  // puede detallar aquí lo evidenciado técnicamente. No reemplaza la lista
-  // de chequeo (que sigue siendo obligatoria y la que usa cualquier
-  // persona); es un anexo adicional, a pedido del usuario.
-  final _observacionesTecnicasCtrl = TextEditingController();
 
   // --- Paso 3: mini-mapa de georreferenciación ---
   MapLibreMapController? _miniMapController;
@@ -158,10 +235,10 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
             content: _pasoEventoObjeto(),
           ),
           Step(
-            title: const Text('2. EDAN básico'),
+            title: const Text('2. Inspección técnica AIS'),
             isActive: _paso >= 1,
             state: _paso > 1 ? StepState.complete : StepState.indexed,
-            content: _pasoEdan(),
+            content: _pasoInspeccionAis(),
           ),
           Step(
             title: const Text('3. GIS — ubicación real'),
@@ -277,32 +354,251 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
     );
   }
 
-  Widget _pasoEdan() {
-    final peor = _calcularNivelDano();
+  /// Paso 2 — formulario oficial AIS ("Guía Técnica para la Inspección de
+  /// Edificaciones Después de un Sismo", Asociación Colombiana de
+  /// Ingeniería Sísmica). Mismos campos, mismas opciones y mismo orden que
+  /// el formulario en papel de 2 páginas que usa la Unidad de Gestión del
+  /// Riesgo — reemplaza el checklist simplificado de 8 componentes que
+  /// tenía SIGERIA antes, a pedido explícito del usuario ("el oficial lo
+  /// debemos adoptar e implementar nosotros porque este es válido para
+  /// unidad del riesgo nacional y local").
+  Widget _pasoInspeccionAis() {
+    final pct = double.tryParse(_pctDanoGlobalCtrl.text.replaceAll(',', '.'));
+    final clasificacion = pct != null ? clasificacionDesdeporcentaje(pct) : null;
+    final colorHab = clasificacion != null ? colorHabitabilidad[clasificacion] : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Marca qué componente ves afectado y qué tan grave se ve — no hace '
-          'falta ser ingeniero/a, solo observar. El nivel de daño general se '
-          'calcula solo, tomando el componente más grave.',
+          'Formulario oficial AIS — el mismo que usa la Unidad de Gestión del '
+          'Riesgo. Llénalo por secciones; las que no apliquen se pueden dejar '
+          'en blanco.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 12),
-        for (final c in componentesDano) _filaComponente(c),
-        const SizedBox(height: 12),
-        Card(
-          color: _colorSeveridad(peor).withValues(alpha: 0.15),
-          child: ListTile(
-            leading: Icon(Icons.rule, color: _colorSeveridad(peor)),
-            title: const Text('Nivel de daño preliminar (calculado)'),
-            subtitle: Text(
-              severidadComponente.firstWhere((s) => s['valor'] == peor)['etiqueta']!,
-              style: TextStyle(color: _colorSeveridad(peor), fontWeight: FontWeight.bold),
+        _seccionAis('Identificación del formulario', [
+          _campoTexto(_localidadCtrl, 'Localidad'),
+          _campoTexto(_nombreBarrioAisCtrl, 'Nombre del barrio'),
+          Row(children: [
+            Expanded(child: _campoTexto(_catastralBarrioCtrl, 'Barrio (catastral)')),
+            const SizedBox(width: 8),
+            Expanded(child: _campoTexto(_catastralManzanaCtrl, 'Manzana')),
+          ]),
+          Row(children: [
+            Expanded(child: _campoTexto(_catastralPredioCtrl, 'Predio')),
+            const SizedBox(width: 8),
+            Expanded(child: _campoTexto(_catastralConstruccionCtrl, 'Construcción')),
+          ]),
+          _campoTexto(_formularioNumeroCtrl, 'Formulario número'),
+          _campoOpcion('Inspección de la edificación', _aisInspeccionTipo, inspeccionTipos,
+              (v) => setState(() => _aisInspeccionTipo = v)),
+        ]),
+        _seccionAis('Identificación de la edificación', [
+          Row(children: [
+            Expanded(
+              flex: 2,
+              child: _campoOpcion('Tipo de vía', _aisTipoVia, tiposVia,
+                  (v) => setState(() => _aisTipoVia = v)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: _campoTexto(_numeroViaCtrl, 'Número')),
+          ]),
+          _campoTexto(_nombreEdificacionCtrl, 'Nombre de la edificación'),
+          _campoOpcion('Uso predominante', _aisUsoPredominante, usosPredominantes,
+              (v) => setState(() => _aisUsoPredominante = v)),
+          _campoOpcion(
+              'Uso predominante de la planta baja', _aisUsoPredominantePlantaBaja, usosPredominantes,
+              (v) => setState(() => _aisUsoPredominantePlantaBaja = v)),
+          Row(children: [
+            Expanded(
+                child: _campoTexto(_nivelesSobreTerrenoCtrl, 'Niveles sobre el terreno',
+                    teclado: TextInputType.number)),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _campoTexto(_sotanosCtrl, 'Sótanos', teclado: TextInputType.number)),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _campoTexto(_pisosTotalCtrl, 'Total', teclado: TextInputType.number)),
+          ]),
+          Row(children: [
+            Expanded(
+                child: _campoTexto(_dimFrenteCtrl, 'Frente (m)',
+                    teclado: const TextInputType.numberWithOptions(decimal: true))),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _campoTexto(_dimFondoCtrl, 'Fondo (m)',
+                    teclado: const TextInputType.numberWithOptions(decimal: true))),
+          ]),
+        ]),
+        _seccionAis('Descripción de la estructura', [
+          _campoOpcion('Sistema estructural', _aisSistemaEstructural, sistemasEstructurales,
+              (v) => setState(() => _aisSistemaEstructural = v)),
+          _campoTexto(_sistemaEstructuralOtroCtrl, 'Sistema estructural — especificar (si es "Otros")'),
+          _campoOpcion('Tipo de entrepiso', _aisTipoEntrepiso, tiposEntrepiso,
+              (v) => setState(() => _aisTipoEntrepiso = v)),
+          _campoTexto(_tipoEntrepisoOtroCtrl, 'Tipo de entrepiso — especificar (si es "Otros")'),
+          _campoOpcion('Año de construcción', _aisAnioConstruccion, aniosConstruccion,
+              (v) => setState(() => _aisAnioConstruccion = v)),
+        ]),
+        _seccionAis('Estado general de la edificación', [
+          _campoOpcion('¿Existe colapso?', _aisExisteColapso, existeColapsoOpciones,
+              (v) => setState(() => _aisExisteColapso = v)),
+          _campoOpcion('Desviación o inclinación de la edificación o de algún entrepiso',
+              _aisDesviacionInclinacion, siNoIndeterminado,
+              (v) => setState(() => _aisDesviacionInclinacion = v)),
+          _campoOpcion('Falla o asentamiento de la cimentación', _aisFallaCimentacion,
+              siNoIndeterminado, (v) => setState(() => _aisFallaCimentacion = v)),
+        ]),
+        _seccionAis('Daños en elementos arquitectónicos', [
+          _campoOpcion('Muros de fachadas o antepechos', _danoMurosFachada, gradoDanoAis,
+              (v) => setState(() => _danoMurosFachada = v)),
+          _campoOpcion('Muros divisorios o particiones', _danoMurosDivisorios, gradoDanoAis,
+              (v) => setState(() => _danoMurosDivisorios = v)),
+          _campoOpcion('Cielo rasos y luminarias', _danoCieloRasos, gradoDanoAis,
+              (v) => setState(() => _danoCieloRasos = v)),
+          _campoOpcion('Cubierta', _danoCubierta, gradoDanoAis,
+              (v) => setState(() => _danoCubierta = v)),
+          _campoOpcion('Escaleras', _danoEscaleras, gradoDanoAis,
+              (v) => setState(() => _danoEscaleras = v)),
+          _campoMultiple('Instalaciones afectadas', instalacionesOpciones, _instalacionesAfectadas),
+          _campoOpcion('Grado de daño de las instalaciones', _danoInstalaciones, gradoDanoAis,
+              (v) => setState(() => _danoInstalaciones = v)),
+          _campoOpcion('Tanques elevados', _danoTanquesElevados, gradoDanoAis,
+              (v) => setState(() => _danoTanquesElevados = v)),
+        ]),
+        _seccionAis('Problemas geotécnicos', [
+          _campoOpcion('Falla en talud o movimientos en masa', _fallaTalud, nivelPuntualGeneral,
+              (v) => setState(() => _fallaTalud = v)),
+          _campoOpcion('Asentamiento, subsidencia o licuación', _asentamientoSubsidenciaLicuacion,
+              nivelPuntualGeneral, (v) => setState(() => _asentamientoSubsidenciaLicuacion = v)),
+        ]),
+        _seccionAis('Daños en elementos estructurales (piso de mayor afectación)', [
+          _campoTexto(_nivelEntrepisoMayorDanoCtrl, 'Nivel de entrepiso con el mayor daño'),
+          _campoOpcion('Columnas o muros portantes', _danoColumnasMurosPortantes, gradoDanoAis,
+              (v) => setState(() => _danoColumnasMurosPortantes = v)),
+          _campoOpcion('Vigas', _danoVigas, gradoDanoAis, (v) => setState(() => _danoVigas = v)),
+          _campoOpcion('Nudos o puntos de conexión', _danoNudosConexion, gradoDanoAis,
+              (v) => setState(() => _danoNudosConexion = v)),
+          _campoOpcion('Entrepisos', _danoEntrepisos, gradoDanoAis,
+              (v) => setState(() => _danoEntrepisos = v)),
+        ]),
+        _seccionAis('Clasificación global del daño y habitabilidad', [
+          _campoTexto(_pctDanoGlobalCtrl, 'Porcentaje de daño global de la edificación (%)',
+              teclado: const TextInputType.numberWithOptions(decimal: true)),
+          if (clasificacion != null && colorHab != null)
+            Card(
+              color: _colorHabitabilidadFlutter(colorHab).withValues(alpha: 0.15),
+              child: ListTile(
+                leading: Icon(Icons.rule, color: _colorHabitabilidadFlutter(colorHab)),
+                title: Text('Clasificación calculada: ${gradoDanoAis.firstWhere((g) => g['valor'] == clasificacion)['etiqueta']}'),
+                subtitle: Text(
+                  etiquetaHabitabilidad[colorHab] ?? colorHab,
+                  style: TextStyle(color: _colorHabitabilidadFlutter(colorHab), fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Text('¿Existe una clasificación previa?', style: TextStyle(fontWeight: FontWeight.bold)),
+          RadioListTile<bool?>(
+            dense: true, title: const Text('Sí'), value: true,
+            groupValue: _existeClasificacionPrevia,
+            onChanged: (v) => setState(() => _existeClasificacionPrevia = v),
+          ),
+          RadioListTile<bool?>(
+            dense: true, title: const Text('No'), value: false,
+            groupValue: _existeClasificacionPrevia,
+            onChanged: (v) => setState(() => _existeClasificacionPrevia = v),
+          ),
+          if (_existeClasificacionPrevia == true)
+            _campoTexto(_clasificacionPreviaCualCtrl, '¿Cuál?'),
+        ]),
+        _seccionAis('Recomendaciones y medidas de seguridad', [
+          _campoMultiple('Se necesita visita especializada por aspectos',
+              visitaEspecializadaOpciones, _visitaEspecializada),
+          _campoMultiple('Se recomienda intervención de', intervencionOpciones, _intervencionRecomendada),
+          _campoMultiple('Medidas de seguridad', medidasSeguridadOpciones, _medidasSeguridad),
+          _campoMultiple('Desconectar', serviciosDesconectarOpciones, _desconectarServicios),
+          _campoTexto(_lugaresMedidasSeguridadCtrl,
+              'Lugares de la edificación que requieren estas medidas'),
+        ]),
+        _seccionAis('Condiciones preexistentes', [
+          _campoOpcion('Calidad de la construcción', _calidadConstruccion, calidadBuenaRegularMala,
+              (v) => setState(() => _calidadConstruccion = v)),
+          _campoOpcion('Posición de la edificación en la manzana', _posicionEdificacionManzana,
+              posicionManzanaOpciones, (v) => setState(() => _posicionEdificacionManzana = v)),
+          _campoOpcion('Configuración en planta', _configuracionPlanta, calidadBuenaRegularMala,
+              (v) => setState(() => _configuracionPlanta = v)),
+          _campoOpcion('Configuración en altura', _configuracionAltura, calidadBuenaRegularMala,
+              (v) => setState(() => _configuracionAltura = v)),
+          _campoOpcion('Configuración estructural', _configuracionEstructural, calidadBuenaRegularMala,
+              (v) => setState(() => _configuracionEstructural = v)),
+          SwitchListTile(
+            dense: true,
+            title: const Text('Hay indicios de daños por sismos anteriores'),
+            value: _indiciosDanosSismosAnteriores ?? false,
+            onChanged: (v) => setState(() => _indiciosDanosSismosAnteriores = v),
+          ),
+          _campoOpcion('Hubo reparación', _huboReparacion, huboReparacionOpciones,
+              (v) => setState(() => _huboReparacion = v)),
+        ]),
+        _seccionAis('Efecto en los ocupantes', [
+          _campoOpcion('Hubo muertos o heridos', _huboMuertosHeridos, huboMuertosHeridosOpciones,
+              (v) => setState(() => _huboMuertosHeridos = v)),
+          Row(children: [
+            Expanded(
+                child: _campoTexto(_numeroFallecidosCtrl, 'Número de fallecidos',
+                    teclado: TextInputType.number)),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _campoTexto(_numeroHeridosCtrl, 'Número de heridos',
+                    teclado: TextInputType.number)),
+          ]),
+        ]),
+        _seccionAis('Ocupación de la edificación', [
+          SwitchListTile(
+            dense: true,
+            title: const Text('En el momento de esta evaluación, la edificación está habitada'),
+            value: _edificacionHabitada ?? false,
+            onChanged: (v) => setState(() => _edificacionHabitada = v),
+          ),
+          Row(children: [
+            Expanded(
+                child: _campoTexto(_numUnidadesExistentesCtrl, 'Unidades existentes',
+                    teclado: TextInputType.number)),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _campoTexto(_numUnidadesNoHabitablesCtrl, 'Unidades no habitables',
+                    teclado: TextInputType.number)),
+          ]),
+        ]),
+        _seccionAis('Comentarios e inspectores', [
+          TextFormField(
+            controller: _comentariosAisCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Comentarios',
+              hintText: 'Amplíe la evaluación con observaciones que ayuden a darle claridad.',
+              border: OutlineInputBorder(),
             ),
           ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: _campoTexto(_codigoComisionCtrl, 'Código de la comisión')),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _campoTexto(_numeroEvaluadoresCtrl, 'No. de evaluadores',
+                    teclado: TextInputType.number)),
+          ]),
+          _campoTexto(_nombreLiderComisionCtrl, 'Nombre del líder de la comisión'),
+        ]),
+        const Divider(height: 32),
+        const Text('Necesidades humanitarias', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'No forma parte del formulario AIS (que solo evalúa seguridad '
+          'estructural) — se conserva para la atención a la familia.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        const SizedBox(height: 12),
-        const Text('Necesidad urgente', style: TextStyle(fontWeight: FontWeight.bold)),
         for (final n in _opcionesNecesidad)
           CheckboxListTile(
             dense: true,
@@ -336,98 +632,75 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           groupValue: _requiereSubsidioArrendamiento,
           onChanged: (v) => setState(() => _requiereSubsidioArrendamiento = v),
         ),
-        const Divider(height: 32),
-        const Text('Observaciones técnicas (opcional)',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        const Text(
-          'Espacio adicional solo si quien evalúa es ingeniero/a y quiere '
-          'detallar por escrito lo evidenciado en la vivienda. No reemplaza '
-          'la lista de chequeo de arriba, que sigue siendo obligatoria.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _observacionesTecnicasCtrl,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Ej.: fisuras diagonales en muro sur, ancho aprox. 3 mm, '
-                'compatibles con esfuerzo cortante…',
-            border: OutlineInputBorder(),
-          ),
-        ),
       ],
     );
   }
 
-  Widget _filaComponente(Map<String, String> componente) {
-    final id = componente['id']!;
-    final valor = _severidadComponentes[id]!;
+  Widget _seccionAis(String titulo, List<Widget> campos) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        initiallyExpanded: true,
+        childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
         children: [
-          Expanded(flex: 3, child: Text(componente['nombre']!)),
-          Expanded(
-            flex: 3,
-            child: DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: valor,
-              decoration: const InputDecoration(isDense: true),
-              items: severidadComponente
-                  .map((s) => DropdownMenuItem(value: s['valor'], child: Text(s['etiqueta']!)))
-                  .toList(),
-              onChanged: (v) => setState(() => _severidadComponentes[id] = v!),
-            ),
-          ),
+          for (final c in campos) Padding(padding: const EdgeInsets.only(bottom: 8), child: c),
         ],
       ),
     );
   }
 
-  /// Toma el componente más grave marcado — así el nivel de daño preliminar
-  /// no se vuelve a preguntar aparte, sale solo de la lista de chequeo.
-  /// `no_aplica` (NP) se ignora a propósito: no es un nivel de gravedad, es
-  /// que el componente no existe en esta vivienda, así que no debe pesar en
-  /// el cálculo del peor caso.
-  String _calcularNivelDano() {
-    var peor = 'sin_dano';
-    for (final v in _severidadComponentes.values) {
-      if (v == 'no_aplica') continue;
-      if (ordenSeveridad.indexOf(v) > ordenSeveridad.indexOf(peor)) peor = v;
-    }
-    return peor;
-  }
-
-  /// Texto legible generado automáticamente a partir de la lista de chequeo
-  /// (reemplaza la descripción libre que antes había que redactar a mano).
-  /// Excluye tanto "sin daño" como "no aplica" — ninguno de los dos es un
-  /// componente afectado.
-  String _resumenComponentesDano() {
-    final afectados = componentesDano.where(
-      (c) => _severidadComponentes[c['id']] != 'sin_dano' &&
-          _severidadComponentes[c['id']] != 'no_aplica',
+  Widget _campoOpcion(String etiqueta, String? valor, List<Map<String, String>> opciones,
+      ValueChanged<String?> onChanged) {
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
+      initialValue: valor,
+      decoration: InputDecoration(labelText: etiqueta, isDense: true, border: const OutlineInputBorder()),
+      items: opciones
+          .map((o) => DropdownMenuItem(value: o['valor'], child: Text(o['etiqueta']!)))
+          .toList(),
+      onChanged: onChanged,
     );
-    if (afectados.isEmpty) return 'Sin componentes con daño marcado.';
-    return afectados.map((c) {
-      final etiqueta = severidadComponente
-          .firstWhere((s) => s['valor'] == _severidadComponentes[c['id']])['etiqueta']!;
-      return '${c['nombre']}: $etiqueta';
-    }).join(' · ');
   }
 
-  Color _colorSeveridad(String valor) {
-    switch (valor) {
-      case 'sin_dano':
+  Widget _campoMultiple(String etiqueta, List<Map<String, String>> opciones, Set<String> seleccionadas) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(etiqueta, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: opciones.map((o) {
+            final seleccionado = seleccionadas.contains(o['valor']);
+            return FilterChip(
+              label: Text(o['etiqueta']!, style: const TextStyle(fontSize: 12)),
+              selected: seleccionado,
+              onSelected: (v) => setState(() {
+                if (v) {
+                  seleccionadas.add(o['valor']!);
+                } else {
+                  seleccionadas.remove(o['valor']);
+                }
+              }),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Color _colorHabitabilidadFlutter(String colorNombre) {
+    switch (colorNombre) {
+      case 'verde':
         return const Color(0xFF2E8B57);
-      case 'leve':
+      case 'amarillo':
         return const Color(0xFFC9B400);
-      case 'moderado':
+      case 'naranja':
         return const Color(0xFFE08A1E);
-      case 'severo':
+      case 'rojo':
         return const Color(0xFFD1392B);
-      case 'colapso':
-        return const Color(0xFF6B0F1A);
       default:
         return Colors.grey;
     }
@@ -831,26 +1104,14 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
       final idEvento = evento['id_evento'] as String;
 
       // 2) Objeto afectado — UN SOLO registro con ubicación + responsables.
-      // El nivel de daño sale de la lista de chequeo por componente, no de
-      // una pregunta aparte (evita que alguien sin formación técnica tenga
-      // que calificar el daño "a ojo" sin apoyo).
+      // El nivel de daño preliminar ya NO sale de una pregunta aparte ni de
+      // un checklist propio: lo fija la inspección AIS (paso 5, más abajo),
+      // que actualiza este mismo objeto con su clasificación oficial.
       final objeto = await api.post('/api/eventos/objetos', {
         'id_evento': idEvento,
         'tipo_objeto': _tipoObjeto,
         'estado_operativo': _estadoOperativo,
-        'nivel_dano_preliminar': _calcularNivelDano(),
-        'resumen_componentes_dano': _resumenComponentesDano(),
-        'observaciones_tecnicas': _observacionesTecnicasCtrl.text.trim().isEmpty
-            ? null
-            : _observacionesTecnicasCtrl.text.trim(),
         'personas_afectadas': int.tryParse(_personasAfectadasCtrl.text.trim()),
-        // Detalle fila por fila — antes solo se mandaba el resumen en texto;
-        // esto es lo que permite calcular de verdad "qué componentes se
-        // dañan más" en la pantalla de Estadísticas.
-        'componentes': [
-          for (final c in componentesDano)
-            {'componente': c['id'], 'severidad': _severidadComponentes[c['id']]},
-        ],
         'departamento': _departamento,
         'barrio_vereda': _barrioCtrl.text.trim(),
         'direccion': _direccionCtrl.text.trim(),
@@ -886,7 +1147,85 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         await api.post('/api/edan/necesidades', {'id_objeto': idObjeto, 'tipo': n});
       }
 
-      // 5) Mediciones — MISMO id_objeto (con su foto calibrada si se tomó)
+      // 5) Inspección técnica AIS — MISMO id_objeto. Este POST es el que
+      // calcula la clasificación de habitabilidad y actualiza
+      // `objeto_afectado.nivel_dano_preliminar` en el backend (ver
+      // `_sincronizar_objeto_afectado` en inspeccion_ais.py) — así el mapa
+      // y las estadísticas siguen coloreando el punto igual que antes,
+      // ahora con el dato oficial en vez del checklist simplificado.
+      await api.post('/api/inspeccion-ais', {
+        'id_objeto': idObjeto,
+        'localidad': _localidadCtrl.text.trim(),
+        'nombre_barrio': _nombreBarrioAisCtrl.text.trim(),
+        'ident_catastral_barrio': _catastralBarrioCtrl.text.trim(),
+        'ident_catastral_manzana': _catastralManzanaCtrl.text.trim(),
+        'ident_catastral_predio': _catastralPredioCtrl.text.trim(),
+        'ident_catastral_construccion': _catastralConstruccionCtrl.text.trim(),
+        'formulario_numero': _formularioNumeroCtrl.text.trim(),
+        'inspeccion_tipo': _aisInspeccionTipo,
+        'tipo_via': _aisTipoVia,
+        'numero_via': _numeroViaCtrl.text.trim(),
+        'nombre_edificacion': _nombreEdificacionCtrl.text.trim(),
+        'uso_predominante': _aisUsoPredominante,
+        'uso_predominante_planta_baja': _aisUsoPredominantePlantaBaja,
+        'niveles_sobre_terreno': int.tryParse(_nivelesSobreTerrenoCtrl.text.trim()),
+        'sotanos': int.tryParse(_sotanosCtrl.text.trim()),
+        'pisos_total': int.tryParse(_pisosTotalCtrl.text.trim()),
+        'dimension_frente_m': double.tryParse(_dimFrenteCtrl.text.trim()),
+        'dimension_fondo_m': double.tryParse(_dimFondoCtrl.text.trim()),
+        'sistema_estructural': _aisSistemaEstructural,
+        'sistema_estructural_otro': _sistemaEstructuralOtroCtrl.text.trim(),
+        'tipo_entrepiso': _aisTipoEntrepiso,
+        'tipo_entrepiso_otro': _tipoEntrepisoOtroCtrl.text.trim(),
+        'anio_construccion': _aisAnioConstruccion,
+        'existe_colapso': _aisExisteColapso,
+        'desviacion_inclinacion': _aisDesviacionInclinacion,
+        'falla_asentamiento_cimentacion': _aisFallaCimentacion,
+        'dano_muros_fachada': _danoMurosFachada,
+        'dano_muros_divisorios': _danoMurosDivisorios,
+        'dano_cielo_rasos': _danoCieloRasos,
+        'dano_cubierta': _danoCubierta,
+        'dano_escaleras': _danoEscaleras,
+        'instalaciones_afectadas': _instalacionesAfectadas.toList(),
+        'dano_instalaciones': _danoInstalaciones,
+        'dano_tanques_elevados': _danoTanquesElevados,
+        'falla_talud': _fallaTalud,
+        'asentamiento_subsidencia_licuacion': _asentamientoSubsidenciaLicuacion,
+        'nivel_entrepiso_mayor_dano': _nivelEntrepisoMayorDanoCtrl.text.trim(),
+        'dano_columnas_muros_portantes': _danoColumnasMurosPortantes,
+        'dano_vigas': _danoVigas,
+        'dano_nudos_conexion': _danoNudosConexion,
+        'dano_entrepisos': _danoEntrepisos,
+        'pct_dano_global': double.tryParse(_pctDanoGlobalCtrl.text.replaceAll(',', '.').trim()),
+        'existe_clasificacion_previa': _existeClasificacionPrevia,
+        'clasificacion_previa_cual': _clasificacionPreviaCualCtrl.text.trim(),
+        'requiere_visita_especializada': _visitaEspecializada.toList(),
+        'recomienda_intervencion': _intervencionRecomendada.toList(),
+        'medidas_seguridad': _medidasSeguridad.toList(),
+        'desconectar_servicios': _desconectarServicios.toList(),
+        'lugares_medidas_seguridad_texto': _lugaresMedidasSeguridadCtrl.text.trim(),
+        'calidad_construccion': _calidadConstruccion,
+        'posicion_edificacion_manzana': _posicionEdificacionManzana,
+        'configuracion_planta': _configuracionPlanta,
+        'configuracion_altura': _configuracionAltura,
+        'configuracion_estructural': _configuracionEstructural,
+        'indicios_danos_sismos_anteriores': _indiciosDanosSismosAnteriores,
+        'hubo_reparacion': _huboReparacion,
+        'hubo_muertos_heridos': _huboMuertosHeridos,
+        'numero_personas_fallecidas': int.tryParse(_numeroFallecidosCtrl.text.trim()),
+        'numero_heridos': int.tryParse(_numeroHeridosCtrl.text.trim()),
+        'edificacion_habitada': _edificacionHabitada,
+        'num_unidades_existentes': int.tryParse(_numUnidadesExistentesCtrl.text.trim()),
+        'num_unidades_no_habitables': int.tryParse(_numUnidadesNoHabitablesCtrl.text.trim()),
+        'comentarios': _comentariosAisCtrl.text.trim(),
+        'codigo_comision': _codigoComisionCtrl.text.trim(),
+        'numero_evaluadores': int.tryParse(_numeroEvaluadoresCtrl.text.trim()),
+        'nombre_lider_comision': _nombreLiderComisionCtrl.text.trim(),
+        'fecha_inspeccion': DateTime.now().toIso8601String(),
+        'creado_por': _recolectorNombreCtrl.text.trim(),
+      });
+
+      // 6) Mediciones — MISMO id_objeto (con su foto calibrada si se tomó)
       for (final m in _mediciones) {
         final valor = double.tryParse(m.valorCtrl.text.trim());
         if (valor == null) continue;

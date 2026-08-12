@@ -293,7 +293,7 @@ class _MenuSigeria extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.assignment),
-            title: const Text('2. EDAN básico adaptativo'),
+            title: const Text('2. Inspección técnica AIS'),
             onTap: () => _abrirExpedienteDesdeMenu(context),
           ),
           ListTile(

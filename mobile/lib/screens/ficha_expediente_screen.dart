@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import '../data/inspeccion_ais_opciones.dart';
 import '../services/api_client.dart';
 import 'editar_expediente_screen.dart';
 
@@ -147,15 +148,13 @@ class _FichaExpedienteScreenState extends State<FichaExpedienteScreen> {
           _fila('Informante', objeto['informante_nombre']),
           _fila('Teléfono informante', objeto['informante_telefono']),
         ]),
-        _tarjeta('Daño', [
-          _fila('Nivel preliminar', objeto['nivel_dano_preliminar']),
-          _fila('Componentes afectados', objeto['resumen_componentes_dano']),
+        _tarjetaInspeccionAis(_datos!['inspeccion_ais'] as Map<String, dynamic>?),
+        _tarjeta('Necesidades humanitarias', [
           _fila('Personas afectadas', objeto['personas_afectadas']?.toString()),
           _fila('Subsidio de arrendamiento',
               objeto['requiere_subsidio_arrendamiento'] == null
                   ? null
                   : (objeto['requiere_subsidio_arrendamiento'] == true ? 'Sí' : 'No')),
-          _fila('Observaciones técnicas', objeto['observaciones_tecnicas']),
         ]),
         if (necesidades.isNotEmpty)
           _tarjeta(
@@ -171,6 +170,116 @@ class _FichaExpedienteScreenState extends State<FichaExpedienteScreen> {
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  /// Inspección técnica AIS ("Guía Técnica para la Inspección de
+  /// Edificaciones Después de un Sismo") — formulario oficial que reemplazó
+  /// el checklist simplificado. Muestra lo más relevante para una lectura
+  /// rápida: clasificación de habitabilidad con su color oficial primero
+  /// (lo que de verdad importa a simple vista), luego el resto por
+  /// secciones iguales al formulario en papel.
+  Widget _tarjetaInspeccionAis(Map<String, dynamic>? ais) {
+    if (ais == null) {
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.rule_folder_outlined, color: Colors.grey),
+          title: const Text('Sin inspección técnica AIS'),
+          subtitle: const Text('Toca Editar para diligenciarla.'),
+        ),
+      );
+    }
+    final colorHab = ais['clasificacion_habitabilidad'] as String?;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Inspección técnica AIS', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            if (colorHab != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _colorHabitabilidad(colorHab).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _colorHabitabilidad(colorHab)),
+                ),
+                child: Row(children: [
+                  Icon(Icons.warning_amber, color: _colorHabitabilidad(colorHab)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      etiquetaHabitabilidad[colorHab] ?? colorHab,
+                      style: TextStyle(color: _colorHabitabilidad(colorHab), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ]),
+              ),
+            const SizedBox(height: 8),
+            _fila('Clasificación global del daño',
+                _etiquetaOpcion(gradoDanoAis, ais['clasificacion_global_dano'])),
+            _fila('% de daño global', ais['pct_dano_global']?.toString()),
+            _fila('Sistema estructural',
+                _etiquetaOpcion(sistemasEstructurales, ais['sistema_estructural'])),
+            _fila('Tipo de entrepiso', _etiquetaOpcion(tiposEntrepiso, ais['tipo_entrepiso'])),
+            _fila('Año de construcción',
+                _etiquetaOpcion(aniosConstruccion, ais['anio_construccion'])),
+            _fila('¿Existe colapso?', _etiquetaOpcion(existeColapsoOpciones, ais['existe_colapso'])),
+            _fila('Desviación / inclinación',
+                _etiquetaOpcion(siNoIndeterminado, ais['desviacion_inclinacion'])),
+            _fila('Falla en cimentación',
+                _etiquetaOpcion(siNoIndeterminado, ais['falla_asentamiento_cimentacion'])),
+            _fila('Muros de fachada', _etiquetaOpcion(gradoDanoAis, ais['dano_muros_fachada'])),
+            _fila('Cubierta', _etiquetaOpcion(gradoDanoAis, ais['dano_cubierta'])),
+            _fila('Columnas o muros portantes',
+                _etiquetaOpcion(gradoDanoAis, ais['dano_columnas_muros_portantes'])),
+            if ((ais['instalaciones_afectadas'] as List<dynamic>? ?? []).isNotEmpty)
+              _fila('Instalaciones afectadas',
+                  (ais['instalaciones_afectadas'] as List<dynamic>)
+                      .map((v) => _etiquetaOpcion(instalacionesOpciones, v))
+                      .join(', ')),
+            if ((ais['medidas_seguridad'] as List<dynamic>? ?? []).isNotEmpty)
+              _fila('Medidas de seguridad',
+                  (ais['medidas_seguridad'] as List<dynamic>)
+                      .map((v) => _etiquetaOpcion(medidasSeguridadOpciones, v))
+                      .join(', ')),
+            _fila('¿Edificación habitada?',
+                ais['edificacion_habitada'] == null ? null : (ais['edificacion_habitada'] == true ? 'Sí' : 'No')),
+            _fila('Hubo muertos o heridos',
+                _etiquetaOpcion(huboMuertosHeridosOpciones, ais['hubo_muertos_heridos'])),
+            _fila('Comentarios', ais['comentarios']),
+            _fila('Código de la comisión', ais['codigo_comision']),
+            _fila('Líder de la comisión', ais['nombre_lider_comision']),
+            _fila('Fecha de inspección', ais['fecha_inspeccion']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _etiquetaOpcion(List<Map<String, String>> opciones, dynamic valor) {
+    if (valor == null) return null;
+    for (final o in opciones) {
+      if (o['valor'] == valor) return o['etiqueta'];
+    }
+    return valor.toString();
+  }
+
+  Color _colorHabitabilidad(String colorNombre) {
+    switch (colorNombre) {
+      case 'verde':
+        return const Color(0xFF2E8B57);
+      case 'amarillo':
+        return const Color(0xFFC9B400);
+      case 'naranja':
+        return const Color(0xFFE08A1E);
+      case 'rojo':
+        return const Color(0xFFD1392B);
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _tarjetaUbicacion(List<dynamic> geometrias) {

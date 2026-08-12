@@ -112,6 +112,55 @@ CREATE TABLE medicion (
     creado_en       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Inspección técnica AIS — mismo formulario oficial de la Unidad de Gestión
+-- del Riesgo (ver comentario equivalente en schema_sqlite.sql). Columnas
+-- codificadas se dejan como TEXT libre (no CHECK) salvo la clasificación de
+-- habitabilidad, que es la que colorea el mapa/estadísticas y sí conviene
+-- restringir.
+CREATE TABLE inspeccion_ais (
+    id_inspeccion   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_objeto       TEXT NOT NULL REFERENCES objeto_afectado(id_objeto),
+    localidad TEXT, nombre_barrio TEXT,
+    ident_catastral_barrio TEXT, ident_catastral_manzana TEXT,
+    ident_catastral_predio TEXT, ident_catastral_construccion TEXT,
+    formulario_numero TEXT, inspeccion_tipo TEXT,
+    tipo_via TEXT, numero_via TEXT, nombre_edificacion TEXT,
+    uso_predominante TEXT, uso_predominante_planta_baja TEXT,
+    niveles_sobre_terreno INTEGER, sotanos INTEGER, pisos_total INTEGER,
+    dimension_frente_m REAL, dimension_fondo_m REAL,
+    sistema_estructural TEXT, sistema_estructural_otro TEXT,
+    tipo_entrepiso TEXT, tipo_entrepiso_otro TEXT, anio_construccion TEXT,
+    existe_colapso TEXT, desviacion_inclinacion TEXT,
+    falla_asentamiento_cimentacion TEXT,
+    dano_muros_fachada TEXT, dano_muros_divisorios TEXT, dano_cielo_rasos TEXT,
+    dano_cubierta TEXT, dano_escaleras TEXT, instalaciones_afectadas TEXT,
+    dano_instalaciones TEXT, dano_tanques_elevados TEXT,
+    falla_talud TEXT, asentamiento_subsidencia_licuacion TEXT,
+    nivel_entrepiso_mayor_dano TEXT, dano_columnas_muros_portantes TEXT,
+    dano_vigas TEXT, dano_nudos_conexion TEXT, dano_entrepisos TEXT,
+    pct_dano_global REAL, clasificacion_global_dano TEXT,
+    clasificacion_habitabilidad TEXT
+        CHECK (clasificacion_habitabilidad IN ('verde','amarillo','naranja','rojo')),
+    existe_clasificacion_previa BOOLEAN, clasificacion_previa_cual TEXT,
+    requiere_visita_especializada TEXT, recomienda_intervencion TEXT,
+    medidas_seguridad TEXT, desconectar_servicios TEXT,
+    lugares_medidas_seguridad_texto TEXT,
+    calidad_construccion TEXT, posicion_edificacion_manzana TEXT,
+    configuracion_planta TEXT, configuracion_altura TEXT,
+    configuracion_estructural TEXT, indicios_danos_sismos_anteriores BOOLEAN,
+    hubo_reparacion TEXT,
+    hubo_muertos_heridos TEXT, numero_personas_fallecidas INTEGER,
+    numero_heridos INTEGER,
+    edificacion_habitada BOOLEAN, num_unidades_existentes INTEGER,
+    num_unidades_no_habitables INTEGER,
+    comentarios TEXT,
+    codigo_comision TEXT, numero_evaluadores INTEGER, nombre_lider_comision TEXT,
+    fecha_inspeccion TIMESTAMPTZ,
+    creado_por      UUID REFERENCES usuario(id_usuario),
+    creado_en       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actualizado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE auditoria (
     id_auditoria    BIGSERIAL PRIMARY KEY,
     tabla           TEXT NOT NULL,
