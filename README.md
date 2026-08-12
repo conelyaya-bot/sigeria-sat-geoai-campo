@@ -2,10 +2,11 @@
 
 # SIGERIA — Sistema Inteligente Geoespacial para Evaluación, Respuesta e Inspección de Afectaciones
 
-> 🟢 **App en vivo:** http://35.196.65.232 — desplegada de verdad en una VM de Google
-> Cloud (nivel Always Free, gratis para siempre). IP fija, no cambia. Cualquiera con el
-> enlace puede abrirla y usarla ya mismo — ver "Novena vuelta" más abajo para el detalle
-> técnico del despliegue.
+> 🟢 **App en vivo (HTTPS real):** https://35-196-65-232.sslip.io — desplegada de verdad
+> en una VM de Google Cloud (nivel Always Free, gratis para siempre), con certificado
+> real de Let's Encrypt (candado verde, sin advertencias). IP fija, no cambia. Cualquiera
+> con el enlace puede abrirla y usarla ya mismo — ver "Novena/Décima vuelta" más abajo
+> para el detalle técnico del despliegue y del HTTPS.
 
 **SIGERIA Campo | módulo de SAT-GeoAI Chocó.** Plataforma móvil + web + GIS + IA para
 capturar, georreferenciar, medir, validar, consolidar y analizar daños y necesidades
@@ -360,9 +361,15 @@ alguien lo tenga guardado aparte.)
   una demo con varios usuarios a la vez, no para una carga masiva de producción nacional.
 - La base de datos sigue siendo **SQLite**, no PostgreSQL/PostGIS — sigue pendiente la
   migración documentada desde el inicio del proyecto (`docs/MODELO_DATOS.md`).
-- El tráfico va por **HTTP, no HTTPS** — no hay certificado TLS configurado todavía (se
-  necesitaría un dominio propio para emitir uno gratis con Let's Encrypt; con solo la IP
-  no alcanza). No enviar información sensible pensando que va cifrada en tránsito.
+- **Actualizado (Décima vuelta): ya va por HTTPS real.** Se resolvió el problema de "no
+  hay dominio propio" usando **sslip.io** — un servicio gratuito que da un nombre
+  (`35-196-65-232.sslip.io`) que resuelve directo a la IP sin configurar DNS. Con ese
+  nombre sí se pudo emitir un certificado real de Let's Encrypt vía `certbot --nginx`.
+  Nginx quedó de proxy reverso en 80/443 (redirige HTTP→HTTPS automático); `uvicorn` pasó
+  a escuchar solo en `127.0.0.1:8080` (ya no expuesto directo a internet). El certificado
+  se renueva solo (`certbot.timer` ya activo). La URL con el **candado real** para
+  compartir es `https://35-196-65-232.sslip.io` — la IP sola (`http://35.196.65.232`)
+  sigue funcionando pero sin ese candado, no es la que hay que repartir.
 - El repositorio de GitHub se puso en **público** (antes era privado) porque la máquina
   necesita clonarlo sin credenciales — se decidió así con el usuario porque el código no
   tiene secretos ni datos reales de personas (esos viven en la base de datos de cada

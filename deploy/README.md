@@ -1,6 +1,7 @@
 # Despliegue de SIGERIA en Google Cloud (Always Free)
 
-App en vivo: **http://35.196.65.232**
+App en vivo (HTTPS real, candado verde): **https://35-196-65-232.sslip.io**
+(la IP sola, `http://35.196.65.232`, también responde pero sin certificado)
 
 Este directorio documenta cómo se creó la VM real que corre SIGERIA — para poder
 recrearla desde cero si hiciera falta, o para que otro departamento haga lo mismo con
@@ -67,11 +68,57 @@ gcloud compute ssh sigeria-campo --zone=us-east1-b --project=campa2026-7a020 \
   --command="sudo journalctl -u sigeria -n 50 --no-pager"
 ```
 
+## HTTPS real con sslip.io + Let's Encrypt (sin comprar dominio)
+
+`sslip.io` da un nombre de host que resuelve directo a la IP embebida en el propio
+nombre (`35-196-65-232.sslip.io` → `35.196.65.232`), sin tocar ningún DNS. Con ese
+nombre Let's Encrypt sí puede validar y emitir un certificado real (con solo la IP no
+puede — el challenge HTTP-01 necesita un hostname).
+
+```bash
+# En la VM (por SSH):
+sudo apt-get install -y nginx certbot python3-certbot-nginx
+
+# Mover uvicorn a un puerto interno — nginx queda como único expuesto en 80/443
+sudo sed -i 's/--port 80/--port 8080/; s/--host 0.0.0.0/--host 127.0.0.1/' \
+  /etc/systemd/system/sigeria.service
+sudo systemctl daemon-reload && sudo systemctl restart sigeria
+
+# Proxy reverso
+sudo tee /etc/nginx/sites-available/sigeria > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name TU-IP-CON-GUIONES.sslip.io;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+EOF
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/sigeria /etc/nginx/sites-enabled/sigeria
+sudo nginx -t && sudo systemctl restart nginx
+
+# Certificado real — certbot configura nginx solo (HTTPS + redirect HTTP→HTTPS)
+sudo certbot --nginx -d TU-IP-CON-GUIONES.sslip.io --non-interactive --agree-tos \
+  -m tu-correo@ejemplo.com --redirect
+```
+
+Y abrir el firewall para 443:
+```bash
+gcloud compute firewall-rules create sigeria-allow-https \
+  --project="$PROYECTO" --allow=tcp:443 --target-tags=http-server \
+  --direction=INGRESS --source-ranges=0.0.0.0/0
+```
+
+El certificado se renueva solo (`certbot.timer`, ya viene activo por defecto).
+
 ## Limitaciones honestas
 
 - 1 VM `e2-micro` (2 vCPU compartidas, 1 GB RAM) — alcanza para un piloto, no para carga
   masiva nacional.
 - Base de datos SQLite en el disco de la VM — persiste reinicios, se pierde si se borra
   la instancia. Migrar a PostgreSQL/PostGIS (`db/schema_postgis.sql`) sigue pendiente.
-- Solo HTTP, sin certificado TLS (haría falta un dominio propio para HTTPS gratis con
-  Let's Encrypt — con solo la IP no alcanza).
+- ~~Solo HTTP~~ — ya resuelto, ver sección de HTTPS arriba. `sslip.io` + Let's Encrypt
+  dan un candado real gratis sin necesitar un dominio comprado.
