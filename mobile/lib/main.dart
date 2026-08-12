@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'screens/como_funciona_screen.dart';
 import 'screens/consulta_registros_screen.dart';
@@ -13,6 +15,41 @@ import 'widgets/mapa_vivo_embed.dart';
 /// Evento y objetos, EDAN básico, GIS offline, Medición móvil) desde el
 /// menú lateral — los 4 pasos son el mismo expediente, no formularios sueltos.
 void main() {
+  // Red de seguridad: si CUALQUIER widget revienta al construirse, Flutter
+  // Web en release por defecto deja esa parte de la pantalla en blanco/gris
+  // sin ningún aviso visible (el error solo queda en la consola del
+  // navegador, que nadie ve en un celular real en campo). Con esto, en vez
+  // de una pantalla muda, se ve el mensaje de error real — necesario para
+  // poder diagnosticar bugs que solo pasan en un dispositivo real y no se
+  // logran reproducir en un navegador de pruebas de escritorio.
+  ErrorWidget.builder = (FlutterErrorDetails detalles) => Material(
+        color: Colors.red.shade50,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('⚠️ Error real de la app (por favor, toma captura y compártela)',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                const SizedBox(height: 8),
+                Text('${detalles.exception}', style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ),
+      );
+  // Errores fuera de build() (p. ej. dentro de un callback async no
+  // capturado) — sin esto, algunos navegadores móviles pueden dar por
+  // "fatal" un error de Dart no manejado y detener el motor de pintado por
+  // completo (pantalla en blanco/gris persistente), en vez de solo perder
+  // esa actualización puntual. Se marca como manejado (`return true`) para
+  // que el motor siga funcionando, y se deja registrado en consola.
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    debugPrint('Error no capturado: $error\n$stack');
+    return true;
+  };
   runApp(const SigeriaCampoApp());
 }
 
