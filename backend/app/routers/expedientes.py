@@ -172,12 +172,17 @@ def _reunir_expediente(conn, id_objeto: str) -> dict:
     ).fetchone()
     evento = row_to_dict(evento) if evento else None
 
-    geometrias = [
-        row_to_dict(r)
-        for r in conn.execute(
-            "SELECT * FROM geometria WHERE id_objeto=?", (id_objeto,)
-        ).fetchall()
-    ]
+    # `geom_geojson` se guarda en la tabla como TEXTO (json.dumps, ver
+    # app/routers/gis.py:crear_geometria) — hay que decodificarlo aquí antes
+    # de devolverlo, igual que ya hace ese router, o el cliente (Flutter)
+    # recibe un string plano donde espera un objeto {type, coordinates} y
+    # revienta con un TypeError al intentar leerlo como mapa.
+    geometrias = []
+    for r in conn.execute("SELECT * FROM geometria WHERE id_objeto=?", (id_objeto,)).fetchall():
+        g = row_to_dict(r)
+        if isinstance(g.get("geom_geojson"), str):
+            g["geom_geojson"] = json.loads(g["geom_geojson"])
+        geometrias.append(g)
     necesidades = [
         row_to_dict(r)
         for r in conn.execute(
