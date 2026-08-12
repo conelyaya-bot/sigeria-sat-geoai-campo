@@ -2,6 +2,11 @@
 
 # SIGERIA — Sistema Inteligente Geoespacial para Evaluación, Respuesta e Inspección de Afectaciones
 
+> 🟢 **App en vivo:** http://35.196.65.232 — desplegada de verdad en una VM de Google
+> Cloud (nivel Always Free, gratis para siempre). IP fija, no cambia. Cualquiera con el
+> enlace puede abrirla y usarla ya mismo — ver "Novena vuelta" más abajo para el detalle
+> técnico del despliegue.
+
 **SIGERIA Campo | módulo de SAT-GeoAI Chocó.** Plataforma móvil + web + GIS + IA para
 capturar, georreferenciar, medir, validar, consolidar y analizar daños y necesidades
 producidos por eventos naturales o socio-naturales, bajo el principio de **captura única**.
@@ -302,6 +307,66 @@ carpeta como config y mostrarla en el menú — queda anotado como mejora futura
 implementada aún porque no había una carpeta de Drive real conectada a este backend para
 probarlo de verdad (solo la carpeta creada a mano en la Tercera vuelta, sin backend
 conectado a ella).
+
+## Novena vuelta (2026-08-11/12) — desplegada de verdad en Google Cloud (gratis, para siempre)
+
+**http://35.196.65.232** — la app completa (backend + interfaz) corriendo en una VM real,
+pública, con IP fija. No es una demo temporal: usa el nivel **Always Free** de Google
+Cloud (1 VM `e2-micro` + 30 GB de disco, gratis para siempre mientras no se pase de esos
+límites — no es un crédito de prueba que se acaba).
+
+- **Un solo servicio sirve todo**: se modificó `backend/app/main.py` para montar la app
+  Flutter Web ya compilada (`backend/app/static_web/`, generada con
+  `flutter build web --dart-define=SIGERIA_API=` — vacío a propósito, para que las
+  peticiones queden relativas al mismo dominio) como archivos estáticos, DESPUÉS de las
+  rutas `/api/...`. Un usuario que entra a `http://35.196.65.232` ve la app; la misma app
+  le pide los datos a `/api/...` en el mismo dominio, sin configurar ninguna URL.
+- **Máquina**: `sigeria-campo`, tipo `e2-micro`, zona `us-east1-b` (una de las 3 zonas
+  elegibles para Always Free — `us-west1-a` había gotado su cupo por saturación temporal
+  al momento del despliegue), Debian 12, disco de 30 GB.
+- **Arranca sola y se reinicia sola si falla**: un *startup script* de la VM instala
+  Python/git, clona el repo (público, sin credenciales), instala dependencias en un
+  venv, y registra un servicio `systemd` (`sigeria.service`) con `Restart=always` —
+  si la VM se reinicia (o el proceso se cae), vuelve a levantarse sin intervención manual.
+- **Datos persistentes de verdad**: `SIGERIA_DB_PATH` y `SIGERIA_CARPETA_EVIDENCIAS`
+  (las mismas variables de entorno de la Séptima/Octava vuelta) apuntan a
+  `/opt/sigeria-data/` en el disco de arranque de la VM — sobrevive reinicios y apagados
+  (solo se perdería si alguien borra la instancia completa, no con un simple reinicio).
+- **IP fija**: se reservó la IP efímera como estática (`sigeria-campo-ip`) para que el
+  enlace nunca cambie, ni siquiera si la VM se reinicia.
+- **Firewall abierto solo para HTTP** (`tcp:80`, regla `sigeria-allow-http`) — el puerto
+  SSH sigue protegido por las reglas por defecto de Google Cloud (solo con `gcloud`
+  autenticado, no expuesto a cualquiera).
+- **Verificado real, no solo "debería funcionar"**: `curl` contra la IP pública confirmó
+  `/api/salud`, la interfaz cargando (`200 text/html`), un evento creado de verdad vía
+  `POST /api/eventos` (con ID secuencial real), y navegador real (Browser pane) mostrando
+  la app funcionando desde la IP pública, no desde `localhost`.
+
+### Cómo actualizar la app en vivo cuando se agregue código nuevo
+
+```bash
+gcloud compute ssh sigeria-campo --zone=us-east1-b --project=campa2026-7a020 \
+  --command="cd /opt/sigeria && sudo git pull && cd backend && sudo ./.venv/bin/pip install -r requirements.txt && sudo systemctl restart sigeria"
+```
+
+(El *startup script* completo, para volver a crear la VM desde cero si hiciera falta,
+queda documentado en este README — no vive en un archivo aparte del repo todavía; queda
+anotado como pendiente moverlo a `deploy/startup.sh` en el repo para no depender de que
+alguien lo tenga guardado aparte.)
+
+### Limitaciones honestas de este despliegue
+
+- Es **una sola VM pequeña** (2 vCPU compartidas, 1 GB RAM) — suficiente para un piloto o
+  una demo con varios usuarios a la vez, no para una carga masiva de producción nacional.
+- La base de datos sigue siendo **SQLite**, no PostgreSQL/PostGIS — sigue pendiente la
+  migración documentada desde el inicio del proyecto (`docs/MODELO_DATOS.md`).
+- El tráfico va por **HTTP, no HTTPS** — no hay certificado TLS configurado todavía (se
+  necesitaría un dominio propio para emitir uno gratis con Let's Encrypt; con solo la IP
+  no alcanza). No enviar información sensible pensando que va cifrada en tránsito.
+- El repositorio de GitHub se puso en **público** (antes era privado) porque la máquina
+  necesita clonarlo sin credenciales — se decidió así con el usuario porque el código no
+  tiene secretos ni datos reales de personas (esos viven en la base de datos de cada
+  despliegue, no en el repo).
 
 ## Próximos pasos reales (no aspiracionales)
 
