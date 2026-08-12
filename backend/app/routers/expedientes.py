@@ -221,7 +221,10 @@ def eliminar_expediente(id_objeto: str):
             if ruta.exists():
                 ruta.unlink()
 
-        for tabla in ("evidencia", "medicion", "necesidad", "geometria", "componente_dano_detalle"):
+        for tabla in (
+            "evidencia", "medicion", "necesidad", "geometria",
+            "componente_dano_detalle", "inspeccion_ais",
+        ):
             conn.execute(f"DELETE FROM {tabla} WHERE id_objeto=?", (id_objeto,))
         conn.execute("DELETE FROM objeto_afectado WHERE id_objeto=?", (id_objeto,))
         conn.execute(
