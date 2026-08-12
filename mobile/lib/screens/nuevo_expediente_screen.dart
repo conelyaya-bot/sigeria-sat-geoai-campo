@@ -657,21 +657,64 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
     return resultado;
   }
 
+  /// Captura GPS — blindada.
+  ///
+  /// Antes se pedía permiso con `checkPermission()`/`requestPermission()`
+  /// ANTES de intentar leer la posición. En el navegador (Chrome/Safari de
+  /// Android e iPhone) eso es poco confiable: `checkPermission()` usa la
+  /// Permissions API (`navigator.permissions.query`), que en varios
+  /// navegadores móviles devuelve "denied" o directamente falla ANTES de
+  /// que el usuario haya visto siquiera el diálogo nativo de "Permitir
+  /// ubicación" — eso es lo que producía "permiso denegado" aunque la
+  /// persona nunca lo hubiera negado. La forma confiable en la web es pedir
+  /// la posición DIRECTAMENTE con `getCurrentPosition()`: eso es lo que
+  /// dispara el diálogo nativo del navegador de verdad, y solo si la
+  /// persona toca "Bloquear" ahí sí llega la excepción de permiso.
   Future<void> _capturarUbicacion() async {
     setState(() => _obteniendoUbicacion = true);
     try {
-      var permiso = await Geolocator.checkPermission();
-      if (permiso == LocationPermission.denied) {
-        permiso = await Geolocator.requestPermission();
+      // Servicio de ubicación del dispositivo/navegador apagado del todo
+      // (distinto de "permiso denegado" — este es un aviso más claro).
+      final servicioActivo = await Geolocator.isLocationServiceEnabled().catchError((_) => true);
+      if (!servicioActivo) {
+        throw Exception(
+            'La ubicación está desactivada en el dispositivo o navegador. Actívala en Ajustes.');
       }
-      if (permiso == LocationPermission.denied || permiso == LocationPermission.deniedForever) {
-        throw Exception('Permiso de ubicación denegado');
+
+      Position pos;
+      try {
+        // Intento directo — es lo que realmente dispara el permiso nativo.
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 20),
+        );
+      } on LocationServiceDisabledException {
+        rethrow;
+      } catch (_) {
+        // Si el intento directo falla (algunos navegadores lo exigen),
+        // recién ahí se revisa/pide permiso explícitamente como respaldo.
+        var permiso = await Geolocator.checkPermission();
+        if (permiso == LocationPermission.denied) {
+          permiso = await Geolocator.requestPermission();
+        }
+        if (permiso == LocationPermission.deniedForever) {
+          throw Exception(
+              'Ubicación bloqueada para este sitio. En el navegador: ícono de candado → '
+              'Permisos del sitio → Ubicación → Permitir, y vuelve a intentar.');
+        }
+        if (permiso == LocationPermission.denied) {
+          throw Exception('Permiso de ubicación denegado. Vuelve a intentar y toca "Permitir".');
+        }
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 20),
+        );
       }
-      final pos = await Geolocator.getCurrentPosition();
       setState(() {
         _ubicacion = {'lat': pos.latitude, 'lon': pos.longitude, 'precision_m': pos.accuracy};
       });
       await _dibujarPuntoMiniMapa();
+      _mensaje('Ubicación capturada correctamente.');
     } catch (e) {
       _mensaje('No se pudo obtener el GPS: $e');
     } finally {
@@ -684,6 +727,35 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
       _mensaje('Falta elegir el municipio (paso 1)');
       setState(() => _paso = 0);
       return;
+    }
+    // Foto y GPS son opcionales a nivel técnico (a veces no hay señal o la
+    // cámara falla en campo), pero un expediente sin ninguno de los dos
+    // pierde casi todo su valor para EDAN. En vez de bloquear el guardado,
+    // se avisa con claridad y se deja decidir — así no se pierde el resto
+    // de los datos ya digitados si de verdad no se puede completar.
+    final faltaFoto = _fotoArchivo == null || _foto == null;
+    final faltaGps = _ubicacion == null;
+    if (faltaFoto || faltaGps) {
+      final continuar = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Expediente incompleto'),
+          content: Text(
+            'Todavía falta:\n'
+            '${faltaFoto ? '• Fotografía general (paso 1)\n' : ''}'
+            '${faltaGps ? '• Ubicación GPS (paso 3)\n' : ''}'
+            '\n¿Guardar de todas formas? Podrás completarlo después desde '
+            '"Consultar registros".',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Volver')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Guardar de todas formas')),
+          ],
+        ),
+      );
+      if (continuar != true) return;
     }
     setState(() => _guardando = true);
     final api = ApiClient(baseUrl: widget.backendUrl);

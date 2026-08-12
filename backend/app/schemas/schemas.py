@@ -78,6 +78,36 @@ class ObjetoAfectadoCrear(BaseModel):
     creado_por: Optional[str] = None
 
 
+class ObjetoAfectadoActualizar(BaseModel):
+    """Edición de un expediente ya creado — todos los campos opcionales,
+    solo se actualiza lo que venga. Permite corregir datos mal digitados o
+    completar después foto/GPS que faltaron al momento de la captura."""
+    tipo_objeto: Optional[str] = None
+    estado_operativo: Optional[EstadoOperativo] = None
+    nivel_dano_preliminar: Optional[NivelDano] = None
+    departamento: Optional[str] = None
+    barrio_vereda: Optional[str] = None
+    direccion: Optional[str] = None
+    recolector_nombre: Optional[str] = None
+    recolector_documento: Optional[str] = None
+    recolector_cargo: Optional[str] = None
+    recolector_entidad: Optional[str] = None
+    informante_nombre: Optional[str] = None
+    informante_documento: Optional[str] = None
+    informante_parentesco: Optional[str] = None
+    informante_telefono: Optional[str] = None
+    requiere_subsidio_arrendamiento: Optional[bool] = None
+    resumen_componentes_dano: Optional[str] = None
+    observaciones_tecnicas: Optional[str] = None
+    personas_afectadas: Optional[int] = None
+    componentes: Optional[list[ComponenteDanoItem]] = None
+    # Permite corregir/agregar la ubicación desde la edición, sin tener que
+    # volver a capturar todo el expediente.
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    precision_gnss_m: Optional[float] = None
+
+
 class ObjetoAfectadoOut(BaseModel):
     id_objeto: str
     id_evento: str

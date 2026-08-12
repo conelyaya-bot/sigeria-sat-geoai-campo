@@ -26,6 +26,8 @@ void main() {
     expect(find.text('3. GIS — ubicación real', skipOffstage: false), findsOneWidget);
     expect(find.text('4. Medición móvil', skipOffstage: false), findsOneWidget);
     expect(find.text('Estadísticas', skipOffstage: false), findsOneWidget);
+    // Consultar registros — ver/editar/eliminar lo ya guardado, no solo capturar.
+    expect(find.text('Consultar registros', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('Nuevo expediente abre el Stepper unico con los 4 pasos',

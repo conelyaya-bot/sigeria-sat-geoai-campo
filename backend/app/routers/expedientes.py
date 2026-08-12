@@ -5,14 +5,158 @@ imprimir o entregar ante UNGRD/departamento/municipio.
 from __future__ import annotations
 
 import io
+import json
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
 
-from app.db.database import get_conn, row_to_dict
+from app.db.database import get_conn, new_uuid, now_iso, row_to_dict
 from app.routers.edan import CARPETA_EVIDENCIAS
+from app.schemas.schemas import ObjetoAfectadoActualizar
 
 router = APIRouter(prefix="/api/expedientes", tags=["Expedientes"])
+
+
+@router.get("/lista")
+def listar_expedientes(
+    departamento: str | None = None,
+    municipio_divipola: str | None = None,
+    q: str | None = None,
+):
+    """Lista liviana para la pantalla 'Consultar registros' — junta el
+    objeto afectado con el fenómeno/municipio del evento y si tiene o no
+    foto/GPS capturados, sin traer el detalle completo de cada uno
+    (fotos, mediciones, etc. — eso se pide aparte con /detalle)."""
+    with get_conn() as conn:
+        condiciones = []
+        parametros: list = []
+        if departamento:
+            condiciones.append("o.departamento = ?")
+            parametros.append(departamento)
+        if municipio_divipola:
+            condiciones.append("e.municipio_divipola = ?")
+            parametros.append(municipio_divipola)
+        if q:
+            condiciones.append(
+                "(o.id_objeto LIKE ? OR o.direccion LIKE ? OR o.barrio_vereda LIKE ? "
+                "OR o.informante_nombre LIKE ? OR o.recolector_nombre LIKE ?)"
+            )
+            comodin = f"%{q}%"
+            parametros.extend([comodin] * 5)
+        where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+        filas = conn.execute(
+            f"""SELECT o.id_objeto, o.id_evento, o.tipo_objeto, o.estado_operativo,
+                       o.nivel_dano_preliminar, o.departamento, o.barrio_vereda, o.direccion,
+                       o.informante_nombre, o.personas_afectadas, o.creado_en, o.actualizado_en,
+                       e.fenomeno, e.municipio_divipola,
+                       (SELECT COUNT(*) FROM evidencia ev WHERE ev.id_objeto = o.id_objeto
+                        AND ev.tipo = 'foto') AS num_fotos,
+                       (SELECT COUNT(*) FROM geometria g WHERE g.id_objeto = o.id_objeto) AS num_geometrias
+                FROM objeto_afectado o
+                JOIN evento e ON e.id_evento = o.id_evento
+                {where}
+                ORDER BY o.creado_en DESC
+                LIMIT 500""",
+            parametros,
+        ).fetchall()
+        return [row_to_dict(f) for f in filas]
+
+
+@router.get("/{id_objeto}/detalle")
+def detalle_expediente(id_objeto: str):
+    """Igual a /exportar pero es el nombre que usa la pantalla de consulta
+    — se deja /exportar también por compatibilidad con integraciones (Drive)."""
+    with get_conn() as conn:
+        return _reunir_expediente(conn, id_objeto)
+
+
+@router.put("/{id_objeto}")
+def editar_expediente(id_objeto: str, payload: ObjetoAfectadoActualizar):
+    """Corrige datos de un expediente ya guardado — por ejemplo si algo
+    quedó mal digitado, o para completar foto/GPS que faltaron al momento
+    de la captura en campo."""
+    with get_conn() as conn:
+        actual = conn.execute(
+            "SELECT * FROM objeto_afectado WHERE id_objeto=?", (id_objeto,)
+        ).fetchone()
+        if not actual:
+            raise HTTPException(404, f"Expediente {id_objeto} no existe")
+
+        campos_planos = payload.model_dump(
+            exclude={"componentes", "lat", "lon", "precision_gnss_m"}, exclude_unset=True
+        )
+        if campos_planos:
+            if "requiere_subsidio_arrendamiento" in campos_planos:
+                v = campos_planos["requiere_subsidio_arrendamiento"]
+                campos_planos["requiere_subsidio_arrendamiento"] = None if v is None else int(v)
+            asignaciones = ", ".join(f"{c} = ?" for c in campos_planos)
+            conn.execute(
+                f"UPDATE objeto_afectado SET {asignaciones}, actualizado_en = ? WHERE id_objeto = ?",
+                (*campos_planos.values(), now_iso(), id_objeto),
+            )
+
+        # Componentes de daño: si vienen, se reemplaza el detalle completo
+        # (más simple y confiable que intentar hacer un diff fila por fila).
+        if payload.componentes is not None:
+            conn.execute("DELETE FROM componente_dano_detalle WHERE id_objeto=?", (id_objeto,))
+            if payload.componentes:
+                conn.executemany(
+                    """INSERT INTO componente_dano_detalle (id_detalle, id_objeto, componente, severidad)
+                       VALUES (?,?,?,?)""",
+                    [(new_uuid(), id_objeto, c.componente, c.severidad) for c in payload.componentes],
+                )
+
+        # Ubicación: si viene lat/lon, se reemplaza la geometría del objeto
+        # (un expediente = un solo punto, así que no acumula duplicados).
+        if payload.lat is not None and payload.lon is not None:
+            conn.execute("DELETE FROM geometria WHERE id_objeto=?", (id_objeto,))
+            conn.execute(
+                """INSERT INTO geometria (id_geometria, id_objeto, geom_tipo, geom_geojson,
+                                           precision_gnss_m, fuente_posicion)
+                   VALUES (?,?,?,?,?,?)""",
+                (
+                    new_uuid(), id_objeto, "Point",
+                    json.dumps({"type": "Point", "coordinates": [payload.lon, payload.lat]}),
+                    payload.precision_gnss_m, "gnss_interno",
+                ),
+            )
+
+        conn.execute(
+            "INSERT INTO auditoria (tabla, id_registro, accion, usuario_id) VALUES (?,?,?,?)",
+            ("objeto_afectado", id_objeto, "editar", None),
+        )
+        return _reunir_expediente(conn, id_objeto)
+
+
+@router.delete("/{id_objeto}")
+def eliminar_expediente(id_objeto: str):
+    """Borra el expediente completo: objeto afectado, geometría, necesidades,
+    mediciones, componentes de daño y evidencias (incluyendo los archivos de
+    foto guardados en disco). El evento (encabezado) NO se borra — puede
+    tener otros objetos asociados."""
+    with get_conn() as conn:
+        actual = conn.execute(
+            "SELECT 1 FROM objeto_afectado WHERE id_objeto=?", (id_objeto,)
+        ).fetchone()
+        if not actual:
+            raise HTTPException(404, f"Expediente {id_objeto} no existe")
+
+        evidencias = conn.execute(
+            "SELECT id_evidencia FROM evidencia WHERE id_objeto=?", (id_objeto,)
+        ).fetchall()
+        for ev in evidencias:
+            ruta = CARPETA_EVIDENCIAS / f"{ev['id_evidencia']}.jpg"
+            if ruta.exists():
+                ruta.unlink()
+
+        for tabla in ("evidencia", "medicion", "necesidad", "geometria", "componente_dano_detalle"):
+            conn.execute(f"DELETE FROM {tabla} WHERE id_objeto=?", (id_objeto,))
+        conn.execute("DELETE FROM objeto_afectado WHERE id_objeto=?", (id_objeto,))
+        conn.execute(
+            "INSERT INTO auditoria (tabla, id_registro, accion, usuario_id) VALUES (?,?,?,?)",
+            ("objeto_afectado", id_objeto, "eliminar", None),
+        )
+        return {"eliminado": id_objeto}
 
 
 def _reunir_expediente(conn, id_objeto: str) -> dict:
@@ -52,6 +196,13 @@ def _reunir_expediente(conn, id_objeto: str) -> dict:
             "SELECT * FROM evidencia WHERE id_objeto=?", (id_objeto,)
         ).fetchall()
     ]
+    componentes = [
+        row_to_dict(r)
+        for r in conn.execute(
+            "SELECT componente, severidad FROM componente_dano_detalle WHERE id_objeto=?",
+            (id_objeto,),
+        ).fetchall()
+    ]
 
     return {
         "evento": evento,
@@ -60,6 +211,7 @@ def _reunir_expediente(conn, id_objeto: str) -> dict:
         "necesidades": necesidades,
         "mediciones": mediciones,
         "evidencias": evidencias,
+        "componentes": componentes,
     }
 
 

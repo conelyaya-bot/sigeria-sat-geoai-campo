@@ -80,6 +80,34 @@ def descargar_evidencia(id_evidencia: str):
     return FileResponse(ruta, media_type="image/jpeg")
 
 
+@router.get("/evidencias")
+def listar_evidencias(id_objeto: str):
+    """Evidencias de un expediente — usado por la pantalla de consulta para
+    mostrar las miniaturas sin traer todo el expediente completo."""
+    with get_conn() as conn:
+        filas = conn.execute(
+            "SELECT * FROM evidencia WHERE id_objeto=? ORDER BY creado_en", (id_objeto,)
+        ).fetchall()
+        return [row_to_dict(f) for f in filas]
+
+
+@router.delete("/evidencias/{id_evidencia}")
+def eliminar_evidencia(id_evidencia: str):
+    """Quita una foto de un expediente — p. ej. si quedó borrosa o repetida
+    y se quiere reemplazar por una mejor."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM evidencia WHERE id_evidencia=?", (id_evidencia,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Esa evidencia no existe")
+        ruta = CARPETA_EVIDENCIAS / f"{id_evidencia}.jpg"
+        if ruta.exists():
+            ruta.unlink()
+        conn.execute("DELETE FROM evidencia WHERE id_evidencia=?", (id_evidencia,))
+        return {"eliminado": id_evidencia}
+
+
 @router.get("/consolidado/{id_evento}")
 def consolidado_edan(id_evento: str):
     """Resumen automático — 'captura única' aplicada: no se vuelve a digitar nada."""

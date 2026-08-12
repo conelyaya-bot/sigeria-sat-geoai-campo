@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/como_funciona_screen.dart';
+import 'screens/consulta_registros_screen.dart';
 import 'screens/estadisticas_screen.dart';
 import 'screens/mapa_screen.dart';
 import 'screens/nuevo_expediente_screen.dart';
@@ -58,6 +59,16 @@ class HomeScreen extends StatelessWidget {
             label: const Text('Nuevo expediente (vivienda o familia afectada)'),
             style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
             onPressed: () => _abrirExpediente(context),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.search),
+            label: const Text('Consultar registros (ver, editar, eliminar)'),
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ConsultaRegistrosScreen(backendUrl: backendUrl)),
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -164,6 +175,14 @@ class _MenuSigeria extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       child: ListView(
+        // cacheExtent grande a propósito: es un menú corto y fijo (no una
+        // lista larga de datos), así que conviene que TODOS sus ítems se
+        // construyan de una vez en vez de ir apareciendo perezosamente al
+        // hacer scroll — evita, además, que agregar una entrada nueva más
+        // arriba empuje a las de abajo fuera del rango que Flutter
+        // construye por defecto (~250 px), que es justo lo que rompía los
+        // widget tests al no encontrarlas ni con skipOffstage: false.
+        cacheExtent: 2000,
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
@@ -213,6 +232,16 @@ class _MenuSigeria extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(context,
                   MaterialPageRoute(builder: (_) => EstadisticasScreen(backendUrl: backendUrl)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.search),
+            title: const Text('Consultar registros'),
+            subtitle: const Text('Ver, editar o eliminar expedientes ya guardados'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => ConsultaRegistrosScreen(backendUrl: backendUrl)));
             },
           ),
           const Divider(),
