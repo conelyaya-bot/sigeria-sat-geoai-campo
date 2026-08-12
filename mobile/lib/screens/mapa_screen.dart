@@ -226,6 +226,10 @@ class _MapaScreenState extends State<MapaScreen> {
   Future<void> _refrescarSilencioso() async {
     final c = _controller;
     if (c == null || !_capaCreada) return;
+    // Igual que en MapaVivoEmbed: si esta pantalla quedó tapada por otra
+    // empujada encima, no tocar el platform view de MapLibre en segundo
+    // plano — evita el mismo riesgo de inestabilidad documentado ahí.
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
     try {
       final uri = widget.idEvento != null
           ? Uri.parse('${widget.backendUrl}/api/gis/geojson/${widget.idEvento}')

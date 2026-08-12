@@ -130,6 +130,19 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
   Future<void> _cargar({bool silencioso = false}) async {
     final c = _controller;
     if (c == null) return;
+    // Si esta pantalla (Inicio) quedó DEBAJO de otra (p. ej. "Consultar
+    // registros" o "Nuevo expediente" empujada encima con Navigator.push),
+    // este widget sigue montado pero no se ve — el Timer de fondo seguía
+    // llamando a setGeoJsonSource() sobre el mapa de MapLibre igual, tocando
+    // un platform view tapado/fuera de pantalla. Eso es exactamente el tipo
+    // de operación que ya se documentó como frágil en este proyecto (ver
+    // memoria: "el <canvas> del mapa... queda por encima/detrás según el
+    // z-order del DOM") y es la sospecha principal de por qué apareció una
+    // pantalla en blanco/gris al navegar a otra sección poco después de
+    // agregar este refresco automático. Se salta el refresco silencioso por
+    // completo si la ruta no es la visible — no hace falta refrescar un
+    // mapa que nadie está mirando.
+    if (silencioso && !(ModalRoute.of(context)?.isCurrent ?? true)) return;
     if (!silencioso) setState(() => _estado = 'Cargando…');
     try {
       final resp = await http.get(_urlGeojson()).timeout(const Duration(seconds: 10));

@@ -90,4 +90,14 @@ void main() {
     expect(find.text('Foto'), findsOneWidget);
     expect(find.text('Guardar expediente completo'), findsWidgets);
   });
+
+  testWidgets('Consultar registros abre sin reventar', (WidgetTester tester) async {
+    await tester.pumpWidget(const SigeriaCampoApp());
+
+    await tester.tap(find.text('Consultar registros (ver, editar, eliminar)'));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    expect(find.text('Consultar registros'), findsOneWidget); // AppBar
+    expect(find.text('Departamento (todos)'), findsOneWidget);
+  });
 }
