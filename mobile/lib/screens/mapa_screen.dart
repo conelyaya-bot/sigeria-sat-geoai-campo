@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -68,8 +69,26 @@ class _MapaScreenState extends State<MapaScreen> {
     'severo': 'Estructural', 'colapso': 'Colapso / destrucción total', null: 'Sin evaluar',
   };
 
+  Timer? _timerAutoRefresco;
+
+  @override
+  void initState() {
+    super.initState();
+    // "En vivo" de verdad: se refresca solo cada 12 s mientras la pantalla
+    // está abierta, sin que la persona tenga que salir y volver a entrar —
+    // así un punto georreferenciado por cualquiera (esta sesión u otra)
+    // aparece en la malla sin acción manual.
+    if (_esEnVivo) {
+      _timerAutoRefresco = Timer.periodic(
+        const Duration(seconds: 12),
+        (_) => _refrescarSilencioso(),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _timerAutoRefresco?.cancel();
     _controller?.onFeatureTapped.clear();
     super.dispose();
   }
@@ -194,6 +213,39 @@ class _MapaScreenState extends State<MapaScreen> {
       setState(() => _estado = null);
     } catch (e) {
       setState(() => _estado = 'No se pudo aplicar el filtro: $e');
+    }
+  }
+
+  /// Refresco automático de fondo (Timer.periodic) — igual que
+  /// `_recargarConFiltro` pero sin mostrar "Filtrando…" cada 12 s (sería un
+  /// parpadeo constante) y sin tapar el mapa con un mensaje de error si ya
+  /// había datos y la falla es solo de una vuelta puntual (se reintenta sola
+  /// en el siguiente ciclo). Así el mapa se siente "en vivo" de verdad: un
+  /// punto georreferenciado por cualquiera aparece solo, sin que la persona
+  /// tenga que salir y volver a entrar.
+  Future<void> _refrescarSilencioso() async {
+    final c = _controller;
+    if (c == null || !_capaCreada) return;
+    try {
+      final uri = widget.idEvento != null
+          ? Uri.parse('${widget.backendUrl}/api/gis/geojson/${widget.idEvento}')
+          : _urlGeojsonGeneral();
+      final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (resp.statusCode != 200) throw Exception('Backend respondió ${resp.statusCode}');
+      final geojson = jsonDecode(resp.body) as Map<String, dynamic>;
+      final nuevasFeatures = geojson['features'] as List<dynamic>? ?? [];
+      await c.setGeoJsonSource('objetos_afectados', geojson);
+      // setState siempre que haya datos frescos (aunque el conteo no haya
+      // cambiado) — el chip "N punto(s) en el mapa" lee `_features.length`
+      // directo del build, así que necesita reconstruirse para reflejarlo.
+      if (mounted) {
+        setState(() {
+          _features = nuevasFeatures;
+          _estado = null;
+        });
+      }
+    } catch (_) {
+      // Silencioso a propósito — se reintenta en el siguiente ciclo del timer.
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -36,9 +37,25 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
   List<dynamic> _features = [];
   String? _estado;
   bool _capaCreada = false;
+  // "Mapa en vivo" de verdad: se refresca solo, sin que la persona tenga que
+  // salir y volver a entrar — así un punto georreferenciado por cualquiera
+  // (incluida esta misma sesión al capturar GPS) aparece en la malla sin
+  // acción manual. A pedido explícito del usuario: "debe de una vez
+  // aparecer georreferenciados los puntos".
+  Timer? _timerAutoRefresco;
+
+  @override
+  void initState() {
+    super.initState();
+    _timerAutoRefresco = Timer.periodic(
+      const Duration(seconds: 12),
+      (_) => _cargar(silencioso: true),
+    );
+  }
 
   @override
   void dispose() {
+    _timerAutoRefresco?.cancel();
     _controller?.onFeatureTapped.clear();
     super.dispose();
   }
@@ -106,10 +123,14 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
         .replace(queryParameters: params.isEmpty ? null : params);
   }
 
-  Future<void> _cargar() async {
+  /// `silencioso: true` en los refrescos automáticos de fondo — no muestra
+  /// "Cargando…" cada 12 s (se vería como parpadeo constante) ni reemplaza un
+  /// mensaje de error visible por uno nuevo si el punto no cambió; solo
+  /// actualiza el conteo/malla cuando sí trae datos frescos.
+  Future<void> _cargar({bool silencioso = false}) async {
     final c = _controller;
     if (c == null) return;
-    setState(() => _estado = 'Cargando…');
+    if (!silencioso) setState(() => _estado = 'Cargando…');
     try {
       final resp = await http.get(_urlGeojson()).timeout(const Duration(seconds: 10));
       if (resp.statusCode != 200) throw Exception('Backend respondió ${resp.statusCode}');
@@ -117,7 +138,8 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
       _features = geojson['features'] as List<dynamic>? ?? [];
 
       if (_capaCreada) {
-        // Ya existe la capa (filtro cambiado) — solo actualizar los datos.
+        // Ya existe la capa (filtro cambiado o refresco automático) — solo
+        // actualizar los datos, sin recrear la capa (evita parpadeo).
         await c.setGeoJsonSource('objetos_afectados', geojson);
       } else {
         await c.addGeoJsonSource('objetos_afectados', geojson);
@@ -142,9 +164,13 @@ class _MapaVivoEmbedState extends State<MapaVivoEmbed> {
           ),
         );
       }
-      setState(() => _estado = null);
+      if (mounted) setState(() => _estado = null);
     } catch (e) {
-      setState(() => _estado = 'Sin conexión al backend');
+      // En un refresco silencioso, no tapar el mapa con un error si ya había
+      // datos cargados antes — solo se reintenta en el siguiente ciclo.
+      if (mounted && !(silencioso && _features.isNotEmpty)) {
+        setState(() => _estado = 'Sin conexión al backend');
+      }
     }
   }
 

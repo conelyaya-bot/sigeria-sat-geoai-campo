@@ -40,12 +40,35 @@ class _TipoMedicion {
   XFile? fotoArchivo;
 }
 
+/// Una foto de evidencia general con su etiqueta (fachada, interior, etc.).
+/// A pedido del usuario: la app debe aceptar como mínimo 6 fotos por
+/// vivienda, no solo una — se arrancan 6 categorías sugeridas típicas de un
+/// EDAN de campo, y se puede agregar más si hace falta. Cada categoría es
+/// opcional en sí misma (no todas las viviendas tienen escalera, por
+/// ejemplo) pero el espacio para las 6 siempre está disponible.
+class _FotoGeneral {
+  String etiqueta;
+  Uint8List? foto;
+  XFile? archivo;
+  _FotoGeneral(this.etiqueta);
+}
+
 class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   int _paso = 0;
   bool _guardando = false;
   bool _obteniendoUbicacion = false;
-  Uint8List? _foto;
-  XFile? _fotoArchivo;
+  // Mínimo 6 fotos aceptadas — categorías típicas de una inspección EDAN de
+  // campo. Se puede agregar más con "Agregar otra foto"; ninguna es
+  // obligatoria por sí sola (una casa puede no tener escalera), pero el
+  // espacio para las 6 siempre está disponible desde el inicio.
+  final List<_FotoGeneral> _fotosGenerales = [
+    _FotoGeneral('Fachada / frente'),
+    _FotoGeneral('Interior / adentro'),
+    _FotoGeneral('Cocina'),
+    _FotoGeneral('Escalera'),
+    _FotoGeneral('Grietas / fisuras'),
+    _FotoGeneral('Otra evidencia'),
+  ];
   Map<String, dynamic>? _ubicacion; // {lat, lon, precision_m}
   final List<_TipoMedicion> _mediciones = [];
   final Set<String> _necesidades = {};
@@ -234,7 +257,7 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           onChanged: (v) => setState(() => _estadoOperativo = v!),
         ),
         const SizedBox(height: 8),
-        _campoFoto(),
+        _seccionFotosGenerales(),
         const Divider(height: 32),
         const Text('Responsable de la recolección', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
@@ -597,42 +620,78 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
     );
   }
 
-  Widget _campoFoto() {
+  /// Al menos 6 fotos aceptadas, con etiqueta editable (a pedido del
+  /// usuario: "frente, adentro, cocina, escalera, grietas, mínimo 6 fotos
+  /// que acepte que tomen"). Cada fila es una categoría; se puede agregar
+  /// más filas con "Agregar otra foto" si hace falta (no hay tope).
+  Widget _seccionFotosGenerales() {
+    final tomadas = _fotosGenerales.where((f) => f.foto != null).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Fotos de la vivienda ($tomadas de ${_fotosGenerales.length} tomadas — '
+          'ninguna es obligatoria por sí sola, pero mientras más completas mejor).',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        const SizedBox(height: 6),
+        for (int i = 0; i < _fotosGenerales.length; i++) _filaFotoGeneral(i),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.add_a_photo_outlined),
+          label: const Text('Agregar otra foto'),
+          onPressed: () => setState(() => _fotosGenerales.add(_FotoGeneral('Otra evidencia'))),
+        ),
+      ],
+    );
+  }
+
+  Widget _filaFotoGeneral(int i) {
+    final f = _fotosGenerales[i];
     return Card(
+      margin: const EdgeInsets.only(bottom: 6),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Row(
           children: [
-            if (_foto != null)
+            if (f.foto != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.memory(_foto!, width: 48, height: 48, fit: BoxFit.cover),
+                child: Image.memory(f.foto!, width: 48, height: 48, fit: BoxFit.cover),
               )
             else
               const Icon(Icons.image_outlined, size: 40, color: Colors.grey),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(_foto != null
-                  ? 'Foto de la vivienda tomada — se guardará con el código del expediente'
-                  : 'Fotografía general de la vivienda/objeto'),
+              child: TextFormField(
+                initialValue: f.etiqueta,
+                decoration: const InputDecoration(isDense: true, border: InputBorder.none),
+                style: const TextStyle(fontSize: 14),
+                onChanged: (v) => f.etiqueta = v,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.camera_alt),
               tooltip: 'Tomar foto con la cámara',
-              onPressed: _tomarFoto,
+              onPressed: () => _tomarFotoGeneral(i),
             ),
+            if (_fotosGenerales.length > 1)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                tooltip: 'Quitar esta fila',
+                onPressed: () => setState(() => _fotosGenerales.removeAt(i)),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _tomarFoto() async {
+  Future<void> _tomarFotoGeneral(int i) async {
     final resultado = await _capturarFoto();
     if (resultado == null) return;
     setState(() {
-      _foto = resultado.$1;
-      _fotoArchivo = resultado.$2;
+      _fotosGenerales[i].foto = resultado.$1;
+      _fotosGenerales[i].archivo = resultado.$2;
     });
   }
 
@@ -733,7 +792,7 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
     // pierde casi todo su valor para EDAN. En vez de bloquear el guardado,
     // se avisa con claridad y se deja decidir — así no se pierde el resto
     // de los datos ya digitados si de verdad no se puede completar.
-    final faltaFoto = _fotoArchivo == null || _foto == null;
+    final faltaFoto = _fotosGenerales.every((f) => f.foto == null);
     final faltaGps = _ubicacion == null;
     if (faltaFoto || faltaGps) {
       final continuar = await showDialog<bool>(
@@ -742,7 +801,7 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           title: const Text('Expediente incompleto'),
           content: Text(
             'Todavía falta:\n'
-            '${faltaFoto ? '• Fotografía general (paso 1)\n' : ''}'
+            '${faltaFoto ? '• Ninguna foto tomada (paso 1)\n' : ''}'
             '${faltaGps ? '• Ubicación GPS (paso 3)\n' : ''}'
             '\n¿Guardar de todas formas? Podrás completarlo después desde '
             '"Consultar registros".',
@@ -850,17 +909,22 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         }
       }
 
-      // 6) Foto general — MISMO id_objeto (queda archivada con el código de
-      // la vivienda; se sube el contenido real, no solo el nombre, para que
-      // el reporte PDF pueda mostrarla de verdad).
-      if (_fotoArchivo != null && _foto != null) {
+      // 6) Fotos generales — MISMO id_objeto (quedan archivadas con el código
+      // de la vivienda, cada una con su etiqueta de categoría en el nombre;
+      // se sube el contenido real, no solo el nombre, para que el reporte
+      // PDF pueda mostrarlas de verdad). Mínimo 6 categorías sugeridas desde
+      // el inicio, pero solo se suben las que sí tienen foto tomada.
+      var fotosGuardadas = 0;
+      for (final f in _fotosGenerales) {
+        if (f.archivo == null || f.foto == null) continue;
         await api.post('/api/edan/evidencias', {
           'id_objeto': idObjeto,
           'tipo': 'foto',
-          'url_almacenamiento': _fotoArchivo!.name,
+          'url_almacenamiento': '${f.etiqueta}_${f.archivo!.name}',
           'usuario_id': _recolectorNombreCtrl.text.trim(),
-          'contenido_base64': base64Encode(_foto!),
+          'contenido_base64': base64Encode(f.foto!),
         });
+        fotosGuardadas++;
       }
 
       if (!mounted) return;
@@ -874,7 +938,7 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
             'Georreferenciado: ${_ubicacion != null ? "sí" : "no"} · '
             'Necesidades: ${_necesidades.length} · '
             'Mediciones: ${_mediciones.length} · '
-            'Foto: ${_fotoArchivo != null ? "sí" : "no"}\n\n'
+            'Fotos: $fotosGuardadas\n\n'
             'Todo quedó archivado bajo el mismo código — captura única. '
             'A continuación se muestra en el mapa real.',
           ),
@@ -884,13 +948,16 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         ),
       );
       if (!mounted) return;
-      // Cierra el ciclo: deja ver el punto georreferenciado en tiempo real
-      // (si hay conexión al backend) y, al volver, cae directo en el menú
-      // principal listo para "Nuevo expediente" otra vez — sin arrastrar
-      // el estado del formulario anterior.
+      // Cierra el ciclo: abre el mapa GENERAL en vivo (no solo este evento)
+      // para que el punto recién creado se vea de una vez como parte de la
+      // malla completa que va creciendo — a pedido explícito del usuario
+      // ("debe de una vez aparecer georreferenciados los puntos" en la
+      // malla, no aislado). Al volver, cae directo en el menú principal
+      // listo para "Nuevo expediente" otra vez — sin arrastrar el estado
+      // del formulario anterior.
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => MapaScreen(backendUrl: widget.backendUrl, idEvento: idEvento),
+          builder: (_) => MapaScreen(backendUrl: widget.backendUrl),
         ),
         (route) => route.isFirst,
       );
