@@ -94,9 +94,12 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   // Gestión del Riesgo ("Guía Técnica para la Inspección de Edificaciones
   // Después de un Sismo"), reemplaza el checklist simplificado que tenía
   // SIGERIA antes. Mismos campos y opciones que el formulario en papel.
-  // Encabezado / identificación catastral
+  // Encabezado / identificación catastral. `nombre_barrio` y
+  // `tipo_via`/`numero_via` del formulario oficial NO se vuelven a pedir
+  // aquí — SIGERIA ya captura barrio/vereda y dirección en el paso 1; se
+  // reutilizan esos mismos valores al guardar (ver `_guardarExpediente`),
+  // a pedido explícito del usuario de que la app no duplique preguntas.
   final _localidadCtrl = TextEditingController();
-  final _nombreBarrioAisCtrl = TextEditingController();
   final _catastralBarrioCtrl = TextEditingController();
   final _catastralManzanaCtrl = TextEditingController();
   final _catastralPredioCtrl = TextEditingController();
@@ -104,8 +107,6 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   final _formularioNumeroCtrl = TextEditingController();
   String? _aisInspeccionTipo;
   // Identificación de la edificación
-  String? _aisTipoVia;
-  final _numeroViaCtrl = TextEditingController();
   final _nombreEdificacionCtrl = TextEditingController();
   String? _aisUsoPredominante;
   String? _aisUsoPredominantePlantaBaja;
@@ -400,8 +401,15 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         ),
         const SizedBox(height: 12),
         _seccionAis('Identificación del formulario', [
+          Text(
+            'Barrio/vereda y dirección ya se capturaron en el paso 1 '
+            '(${_barrioCtrl.text.trim().isEmpty ? "sin diligenciar" : _barrioCtrl.text.trim()}'
+            '${_direccionCtrl.text.trim().isEmpty ? '' : ' · ${_direccionCtrl.text.trim()}'}) '
+            '— no se vuelven a pedir aquí para no duplicar el dato.',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
           _campoTexto(_localidadCtrl, 'Localidad'),
-          _campoTexto(_nombreBarrioAisCtrl, 'Nombre del barrio'),
           Row(children: [
             Expanded(child: _campoTexto(_catastralBarrioCtrl, 'Barrio (catastral)')),
             const SizedBox(width: 8),
@@ -417,15 +425,6 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
               (v) => setState(() => _aisInspeccionTipo = v)),
         ]),
         _seccionAis('Identificación de la edificación', [
-          Row(children: [
-            Expanded(
-              flex: 2,
-              child: _campoOpcion('Tipo de vía', _aisTipoVia, tiposVia,
-                  (v) => setState(() => _aisTipoVia = v)),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: _campoTexto(_numeroViaCtrl, 'Número')),
-          ]),
           _campoTexto(_nombreEdificacionCtrl, 'Nombre de la edificación'),
           _campoOpcion('Uso predominante', _aisUsoPredominante, usosPredominantes,
               (v) => setState(() => _aisUsoPredominante = v)),
@@ -1245,15 +1244,16 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
       await api.post('/api/inspeccion-ais', {
         'id_objeto': idObjeto,
         'localidad': _localidadCtrl.text.trim(),
-        'nombre_barrio': _nombreBarrioAisCtrl.text.trim(),
+        // Reutiliza lo ya digitado en el paso 1 — no se vuelve a preguntar
+        // el barrio ni la dirección para no duplicar la misma pregunta.
+        'nombre_barrio': _barrioCtrl.text.trim(),
         'ident_catastral_barrio': _catastralBarrioCtrl.text.trim(),
         'ident_catastral_manzana': _catastralManzanaCtrl.text.trim(),
         'ident_catastral_predio': _catastralPredioCtrl.text.trim(),
         'ident_catastral_construccion': _catastralConstruccionCtrl.text.trim(),
         'formulario_numero': _formularioNumeroCtrl.text.trim(),
         'inspeccion_tipo': _aisInspeccionTipo,
-        'tipo_via': _aisTipoVia,
-        'numero_via': _numeroViaCtrl.text.trim(),
+        'numero_via': _direccionCtrl.text.trim(),
         'nombre_edificacion': _nombreEdificacionCtrl.text.trim(),
         'uso_predominante': _aisUsoPredominante,
         'uso_predominante_planta_baja': _aisUsoPredominantePlantaBaja,
