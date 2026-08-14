@@ -75,9 +75,28 @@ _ETIQUETAS_AIS: dict[str, dict[str, str]] = {
         "demoler_elementos_peligro": "Demoler elementos en peligro de caer",
         "evacuar_edificaciones_vecinas": "Evacuar edificaciones vecinas",
     },
-    "calidad": {"buena": "Buena", "regular": "Regular", "mala": "Mala"},
-    "reparacion": {"total": "Total", "parcial": "Parcial", "ninguna": "Ninguna"},
+    "calidad": {"buena": "Buena", "regular": "Regular", "mala": "Mala", "no_determinado": "No se pudo determinar"},
+    "reparacion": {
+        "total": "Total", "parcial": "Parcial", "ninguna": "Ninguna",
+        "no_determinado": "No se pudo determinar",
+    },
     "muertos_heridos": {"no": "No", "si": "Sí", "no_se_sabe": "No se sabe"},
+    "clasificacion_abcde": {
+        "habitable": "Habitable", "uso_restringido": "Uso restringido",
+        "no_habitable": "No habitable", "peligro_colapso": "Peligro de colapso",
+    },
+    "si_no": {"si": "Sí", "no": "No"},
+    "edificio_vecino": {"no": "No", "si": "Sí", "no_determinado": "No se pudo determinar"},
+    "grietas_terreno": {"no": "No", "incipientes": "Incipientes", "generalizadas": "Generalizadas"},
+    "tipo_suelo": {"duro": "Duro", "medio": "Medio", "blando": "Blando"},
+    "tipo_cimentacion": {"superficial": "Superficial", "profunda": "Profunda", "no_determinado": "No se pudo determinar"},
+    "topografia": {
+        "plano": "Plano", "cresta": "Cresta", "ladera": "Ladera",
+        "pie_de_ladera": "Pie de ladera", "valle": "Valle",
+        "borde_canal_rio_lago": "Borde de canal, río o lago",
+    },
+    "tipo_cubierta": {"maciza": "Maciza", "liviana": "Liviana"},
+    "anclaje": {"si": "Sí", "no": "No", "no_sabe": "No se sabe"},
 }
 
 
@@ -359,12 +378,23 @@ def reporte_pdf(id_objeto: str):
         Spacer(1, 12),
     ]
 
+    estilo_celda = ParagraphStyle("Celda", parent=estilos["Normal"], fontSize=9, leading=11)
+
     def _tabla(filas, anchos=None):
-        t = Table(filas, colWidths=anchos)
+        # Cada celda de texto se envuelve en un Paragraph — un string plano
+        # en una Table de reportlab NO hace salto de línea dentro de su
+        # columna cuando es más largo que el ancho asignado: se dibuja tal
+        # cual y se ve encimado sobre la columna vecina (bug real
+        # encontrado al agregar las etiquetas largas del formulario AIS,
+        # confirmado visualmente antes de este fix).
+        filas_envueltas = [
+            [Paragraph(str(c), estilo_celda) if isinstance(c, str) else c for c in fila]
+            for fila in filas
+        ]
+        t = Table(filas_envueltas, colWidths=anchos)
         t.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#c8d2d5")),
             ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eef2f3")),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("TOPPADDING", (0, 0), (-1, -1), 4),
@@ -430,9 +460,19 @@ def reporte_pdf(id_objeto: str):
             elementos.append(tabla_hab)
             elementos.append(Spacer(1, 6))
 
+        # Las 5 evaluaciones independientes (sección 2.9 de la guía) — la
+        # habitabilidad de arriba es la más conservadora de estas 5, no un
+        # cálculo aparte del %.
         elementos.append(_tabla([
-            ["Clasificación global del daño", _etq("grado_dano", ais.get("clasificacion_global_dano"))],
-            ["Porcentaje de daño global",
+            ["A. Estado general", _etq("clasificacion_abcde", ais.get("clasificacion_a_estado_general"))],
+            ["B. Problemas geotécnicos", _etq("clasificacion_abcde", ais.get("clasificacion_b_geotecnico"))],
+            ["C. Elementos no estructurales", _etq("clasificacion_abcde", ais.get("clasificacion_c_no_estructural"))],
+            ["D. Elementos estructurales", _etq("clasificacion_abcde", ais.get("clasificacion_d_estructural"))],
+            ["E. Problemas del entorno", _etq("clasificacion_abcde", ais.get("clasificacion_e_entorno"))],
+        ], anchos=[6 * cm, 10.5 * cm]))
+        elementos.append(Spacer(1, 6))
+        elementos.append(_tabla([
+            ["% de daño global (estimado, no decide habitabilidad)",
              f"{ais['pct_dano_global']}%" if ais.get("pct_dano_global") is not None else "—"],
             ["Sistema estructural", _etq("sistema_estructural", ais.get("sistema_estructural"))],
             ["Tipo de entrepiso", _etq("tipo_entrepiso", ais.get("tipo_entrepiso"))],
@@ -445,14 +485,21 @@ def reporte_pdf(id_objeto: str):
             ["Desviación o inclinación", _etq("si_no_indet", ais.get("desviacion_inclinacion"))],
             ["Falla o asentamiento de cimentación", _etq("si_no_indet", ais.get("falla_asentamiento_cimentacion"))],
             ["Muros de fachada", _etq("grado_dano", ais.get("dano_muros_fachada"))],
+            ["Vidrios exteriores", _etq("grado_dano", ais.get("dano_vidrios_exteriores"))],
+            ["Acabados exteriores", _etq("grado_dano", ais.get("dano_acabados_exteriores"))],
             ["Muros divisorios", _etq("grado_dano", ais.get("dano_muros_divisorios"))],
+            ["Balcones", _etq("grado_dano", ais.get("dano_balcones"))],
             ["Cielo rasos y luminarias", _etq("grado_dano", ais.get("dano_cielo_rasos"))],
             ["Cubierta", _etq("grado_dano", ais.get("dano_cubierta"))],
             ["Escaleras", _etq("grado_dano", ais.get("dano_escaleras"))],
             ["Instalaciones afectadas", _etq("instalacion", ais.get("instalaciones_afectadas") or [])],
+            ["Ductos de ventilación", _etq("grado_dano", ais.get("dano_ductos_ventilacion"))],
             ["Falla en talud / movimientos en masa", _etq("puntual_general", ais.get("falla_talud"))],
             ["Asentamiento / subsidencia / licuación",
              _etq("puntual_general", ais.get("asentamiento_subsidencia_licuacion"))],
+            ["Grietas en el terreno circundante", _etq("grietas_terreno", ais.get("grietas_terreno_circundante"))],
+            ["Edificio vecino crítico", _etq("edificio_vecino", ais.get("edificio_vecino_critico"))],
+            ["Evento adverso inminente", _etq("si_no", ais.get("evento_adverso_inminente"))],
             ["Columnas o muros portantes", _etq("grado_dano", ais.get("dano_columnas_muros_portantes"))],
             ["Vigas", _etq("grado_dano", ais.get("dano_vigas"))],
             ["Nudos o puntos de conexión", _etq("grado_dano", ais.get("dano_nudos_conexion"))],
@@ -467,17 +514,36 @@ def reporte_pdf(id_objeto: str):
                 ["Lugares que requieren estas medidas", ais.get("lugares_medidas_seguridad_texto") or "—"],
             ], anchos=[6 * cm, 10.5 * cm]))
 
-        elementos.append(Paragraph("Condiciones preexistentes y efecto en ocupantes", subtitulo))
+        elementos.append(Paragraph("Condiciones preexistentes (no cambian la clasificación)", subtitulo))
         elementos.append(_tabla([
             ["Calidad de la construcción", _etq("calidad", ais.get("calidad_construccion"))],
             ["Configuración en planta", _etq("calidad", ais.get("configuracion_planta"))],
             ["Configuración en altura", _etq("calidad", ais.get("configuracion_altura"))],
             ["Configuración estructural", _etq("calidad", ais.get("configuracion_estructural"))],
+            ["Tipo de suelo", _etq("tipo_suelo", ais.get("tipo_suelo"))],
+            ["Tipo de cimentación", _etq("tipo_cimentacion", ais.get("tipo_cimentacion"))],
+            ["Calidad de la cimentación", _etq("calidad", ais.get("calidad_cimentacion"))],
+            ["Condiciones topográficas", _etq("topografia", ais.get("condiciones_topograficas"))],
+            ["Tipo de cubierta", _etq("tipo_cubierta", ais.get("tipo_cubierta"))],
+            ["Condiciones de amarre de la cubierta", _etq("calidad", ais.get("condiciones_amarre_cubierta"))],
+            ["Efecto de columna corta", _etq("si_no", ais.get("efecto_columna_corta"))],
+            ["Continuidad en columnas y vigas", _etq("si_no", ais.get("continuidad_columnas_vigas"))],
+            ["Anclaje de elementos no estructurales",
+             _etq("anclaje", ais.get("evidencia_anclaje_no_estructural"))],
             ["Hubo reparación", _etq("reparacion", ais.get("hubo_reparacion"))],
+            ["Reforzamiento estructural anterior", _etq("reparacion", ais.get("reforzamiento_estructural_anterior"))],
+        ], anchos=[6 * cm, 10.5 * cm]))
+
+        elementos.append(Paragraph("Efecto en ocupantes y ocupación", subtitulo))
+        elementos.append(_tabla([
             ["Hubo muertos o heridos", _etq("muertos_heridos", ais.get("hubo_muertos_heridos"))],
             ["Personas fallecidas", str(ais.get("numero_personas_fallecidas") or 0)],
             ["Heridos", str(ais.get("numero_heridos") or 0)],
             ["¿Edificación habitada?", "Sí" if ais.get("edificacion_habitada") else "No"],
+            ["Número de ocupantes", str(ais.get("numero_ocupantes") or "—")],
+            ["Unidades existentes", str(ais.get("num_unidades_existentes") or "—")],
+            ["Unidades no habitables", str(ais.get("num_unidades_no_habitables") or "—")],
+            ["Correo del contacto", ais.get("email_contacto") or "—"],
         ], anchos=[6 * cm, 10.5 * cm]))
 
         if ais.get("comentarios"):
@@ -489,6 +555,7 @@ def reporte_pdf(id_objeto: str):
             ["Código de la comisión", ais.get("codigo_comision") or "—"],
             ["Número de evaluadores", str(ais.get("numero_evaluadores") or "—")],
             ["Líder de la comisión", ais.get("nombre_lider_comision") or "—"],
+            ["Otro inspector", ais.get("otro_inspector") or "—"],
             ["Fecha de inspección", ais.get("fecha_inspeccion") or "—"],
         ], anchos=[6 * cm, 10.5 * cm]))
     else:

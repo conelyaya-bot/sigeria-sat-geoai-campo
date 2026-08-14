@@ -159,18 +159,28 @@ CREATE TABLE IF NOT EXISTS inspeccion_ais (
     falla_asentamiento_cimentacion         TEXT,   -- si|no|no_determinado
 
     -- Daños en elementos arquitectónicos (ninguno|leve|moderado|fuerte|severo)
+    -- — 11 elementos según la guía IDIGER 2018 (antes solo 7).
     dano_muros_fachada                       TEXT,
-    dano_muros_divisorios                     TEXT,
-    dano_cielo_rasos                           TEXT,
-    dano_cubierta                               TEXT,
-    dano_escaleras                               TEXT,
-    instalaciones_afectadas                       TEXT,  -- CSV: acueducto,alcantarillado,energia,gas
-    dano_instalaciones                             TEXT,
-    dano_tanques_elevados                           TEXT,
+    dano_vidrios_exteriores                   TEXT,
+    dano_acabados_exteriores                   TEXT,
+    dano_muros_divisorios                       TEXT,
+    dano_balcones                                TEXT,
+    dano_cielo_rasos                              TEXT,
+    dano_cubierta                                  TEXT,
+    dano_escaleras                                  TEXT,
+    instalaciones_afectadas                          TEXT,  -- CSV: acueducto,alcantarillado,energia,gas
+    dano_instalaciones                                TEXT,
+    dano_ductos_ventilacion                            TEXT,
+    dano_tanques_elevados                               TEXT,
 
     -- Problemas geotécnicos
     falla_talud                                      TEXT,  -- no|puntual|general
     asentamiento_subsidencia_licuacion                TEXT,  -- no|puntual|general
+    grietas_terreno_circundante                        TEXT,  -- no|incipientes|generalizadas
+
+    -- Problemas del entorno (sección nueva de la guía 2018 — clasificación E)
+    edificio_vecino_critico                              TEXT,  -- no|si|no_determinado
+    evento_adverso_inminente                              TEXT,  -- no|si
 
     -- Daños en elementos estructurales (piso de mayor afectación)
     nivel_entrepiso_mayor_dano                          TEXT,
@@ -179,9 +189,18 @@ CREATE TABLE IF NOT EXISTS inspeccion_ais (
     dano_nudos_conexion                                    TEXT,
     dano_entrepisos                                         TEXT,
 
-    -- Clasificación global
+    -- Clasificación global — la guía IDIGER 2018 exige 5 evaluaciones
+    -- independientes (A-E), cada una con su propia tabla de criterios, y
+    -- toma la MÁS CONSERVADORA como resultado final. Se guardan las 5 por
+    -- separado (trazabilidad de cuál fue la que definió el resultado) más
+    -- la clasificación global ya combinada.
+    clasificacion_a_estado_general                             TEXT,  -- habitable|uso_restringido|no_habitable|peligro_colapso
+    clasificacion_b_geotecnico                                  TEXT,
+    clasificacion_c_no_estructural                               TEXT,
+    clasificacion_d_estructural                                   TEXT,
+    clasificacion_e_entorno                                        TEXT,
     pct_dano_global                                          REAL,
-    clasificacion_global_dano                                 TEXT,  -- ninguno|leve|moderado|fuerte|severo
+    clasificacion_global_dano                                 TEXT,  -- ninguno|leve|moderado|fuerte|severo|colapso_total
     clasificacion_habitabilidad                                TEXT, -- verde|amarillo|naranja|rojo
     existe_clasificacion_previa                                 INTEGER,
     clasificacion_previa_cual                                    TEXT,
@@ -193,14 +212,27 @@ CREATE TABLE IF NOT EXISTS inspeccion_ais (
     desconectar_servicios                                            TEXT,
     lugares_medidas_seguridad_texto                                   TEXT,
 
-    -- Condiciones preexistentes
+    -- Condiciones preexistentes — sección 3.3 de la guía IDIGER 2018.
+    -- No entran en la clasificación automática A-E (la guía dice
+    -- explícitamente que quedan "a criterio del evaluador"); son factores
+    -- de vulnerabilidad que documentan POR QUÉ se dio el daño observado.
     calidad_construccion                                               TEXT,  -- buena|regular|mala
     posicion_edificacion_manzana                                        TEXT,
     configuracion_planta                                                 TEXT,
     configuracion_altura                                                  TEXT,
     configuracion_estructural                                              TEXT,
-    indicios_danos_sismos_anteriores                                        INTEGER,
-    hubo_reparacion                                                          TEXT,  -- total|parcial|ninguna
+    tipo_suelo                                                              TEXT,  -- duro|medio|blando
+    tipo_cimentacion                                                         TEXT,  -- superficial|profunda|no_determinado
+    calidad_cimentacion                                                       TEXT,  -- buena|regular|mala|no_determinado
+    condiciones_topograficas                                                   TEXT,
+    tipo_cubierta                                                               TEXT,  -- maciza|liviana
+    condiciones_amarre_cubierta                                                  TEXT,  -- buena|regular|mala
+    efecto_columna_corta                                                          TEXT,  -- si|no
+    continuidad_columnas_vigas                                                     TEXT,  -- si|no
+    evidencia_anclaje_no_estructural                                                TEXT,  -- si|no|no_sabe
+    indicios_danos_sismos_anteriores                                                 INTEGER,
+    hubo_reparacion                                                                   TEXT,  -- total|parcial|ninguna|no_determinado
+    reforzamiento_estructural_anterior                                                 TEXT,  -- total|parcial|ninguna|no_determinado
 
     -- Efecto en los ocupantes
     hubo_muertos_heridos                                                      TEXT,  -- no|si|no_se_sabe
@@ -209,8 +241,15 @@ CREATE TABLE IF NOT EXISTS inspeccion_ais (
 
     -- Ocupación de la edificación
     edificacion_habitada                                                        INTEGER,
-    num_unidades_existentes                                                      INTEGER,
-    num_unidades_no_habitables                                                    INTEGER,
+    numero_ocupantes                                                             INTEGER,
+    num_unidades_existentes                                                       INTEGER,
+    num_unidades_no_habitables                                                     INTEGER,
+
+    -- Persona para contacto — email nuevo en la guía 2018 (nombre/teléfono
+    -- ya se reutilizan de objeto_afectado.informante_*, pero el formulario
+    -- oficial trae un contacto propio de esta sección; se guarda aquí el
+    -- correo para no forzar ese campo en el objeto general).
+    email_contacto                                                                  TEXT,
 
     comentarios                                                                     TEXT,
 
@@ -218,9 +257,7 @@ CREATE TABLE IF NOT EXISTS inspeccion_ais (
     codigo_comision                                                                TEXT,
     numero_evaluadores                                                              INTEGER,
     nombre_lider_comision                                                            TEXT,
-
-    -- Persona para contacto (en la vivienda) — se reutiliza
-    -- objeto_afectado.informante_* para no duplicar el mismo dato dos veces.
+    otro_inspector                                                                   TEXT,
 
     fecha_inspeccion       TEXT,
     creado_por             TEXT,

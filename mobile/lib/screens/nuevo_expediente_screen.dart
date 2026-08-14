@@ -124,18 +124,26 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   String? _aisExisteColapso;
   String? _aisDesviacionInclinacion;
   String? _aisFallaCimentacion;
-  // Daños en elementos arquitectónicos
+  // Daños en elementos arquitectónicos — 11 elementos (guía IDIGER 2018)
   String? _danoMurosFachada;
+  String? _danoVidriosExteriores;
+  String? _danoAcabadosExteriores;
   String? _danoMurosDivisorios;
+  String? _danoBalcones;
   String? _danoCieloRasos;
   String? _danoCubierta;
   String? _danoEscaleras;
   final Set<String> _instalacionesAfectadas = {};
   String? _danoInstalaciones;
+  String? _danoDuctosVentilacion;
   String? _danoTanquesElevados;
   // Problemas geotécnicos
   String? _fallaTalud;
   String? _asentamientoSubsidenciaLicuacion;
+  String? _grietasTerrenoCircundante;
+  // Problemas del entorno (sección nueva de la guía 2018 — clasificación E)
+  String? _edificioVecinoCritico;
+  String? _eventoAdversoInminente;
   // Daños en elementos estructurales (piso de mayor afectación)
   final _nivelEntrepisoMayorDanoCtrl = TextEditingController();
   String? _danoColumnasMurosPortantes;
@@ -152,27 +160,41 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
   final Set<String> _medidasSeguridad = {};
   final Set<String> _desconectarServicios = {};
   final _lugaresMedidasSeguridadCtrl = TextEditingController();
-  // Condiciones preexistentes
+  // Condiciones preexistentes — no entran en la clasificación automática
+  // (la guía las deja "a criterio del evaluador"), documentan el porqué.
   String? _calidadConstruccion;
   String? _posicionEdificacionManzana;
   String? _configuracionPlanta;
   String? _configuracionAltura;
   String? _configuracionEstructural;
+  String? _tipoSuelo;
+  String? _tipoCimentacion;
+  String? _calidadCimentacion;
+  String? _condicionesTopograficas;
+  String? _tipoCubierta;
+  String? _condicionesAmarreCubierta;
+  String? _efectoColumnaCorta;
+  String? _continuidadColumnasVigas;
+  String? _evidenciaAnclajeNoEstructural;
   bool? _indiciosDanosSismosAnteriores;
   String? _huboReparacion;
+  String? _reforzamientoEstructuralAnterior;
   // Efecto en los ocupantes
   String? _huboMuertosHeridos;
   final _numeroFallecidosCtrl = TextEditingController();
   final _numeroHeridosCtrl = TextEditingController();
   // Ocupación de la edificación
   bool? _edificacionHabitada;
+  final _numeroOcupantesCtrl = TextEditingController();
   final _numUnidadesExistentesCtrl = TextEditingController();
   final _numUnidadesNoHabitablesCtrl = TextEditingController();
+  final _emailContactoCtrl = TextEditingController();
   // Comentarios e inspectores
   final _comentariosAisCtrl = TextEditingController();
   final _codigoComisionCtrl = TextEditingController();
   final _numeroEvaluadoresCtrl = TextEditingController();
   final _nombreLiderComisionCtrl = TextEditingController();
+  final _otroInspectorCtrl = TextEditingController();
 
   // --- Necesidades humanitarias — no forman parte del formulario AIS (que
   // solo evalúa seguridad estructural), pero siguen siendo datos valiosos de
@@ -453,8 +475,14 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         _seccionAis('Daños en elementos arquitectónicos', [
           _campoOpcion('Muros de fachadas o antepechos', _danoMurosFachada, gradoDanoAis,
               (v) => setState(() => _danoMurosFachada = v)),
+          _campoOpcion('Vidrios exteriores', _danoVidriosExteriores, gradoDanoAis,
+              (v) => setState(() => _danoVidriosExteriores = v)),
+          _campoOpcion('Acabados exteriores (antenas, letreros o similares)', _danoAcabadosExteriores,
+              gradoDanoAis, (v) => setState(() => _danoAcabadosExteriores = v)),
           _campoOpcion('Muros divisorios o particiones', _danoMurosDivisorios, gradoDanoAis,
               (v) => setState(() => _danoMurosDivisorios = v)),
+          _campoOpcion('Balcones', _danoBalcones, gradoDanoAis,
+              (v) => setState(() => _danoBalcones = v)),
           _campoOpcion('Cielo rasos y luminarias', _danoCieloRasos, gradoDanoAis,
               (v) => setState(() => _danoCieloRasos = v)),
           _campoOpcion('Cubierta', _danoCubierta, gradoDanoAis,
@@ -464,6 +492,8 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           _campoMultiple('Instalaciones afectadas', instalacionesOpciones, _instalacionesAfectadas),
           _campoOpcion('Grado de daño de las instalaciones', _danoInstalaciones, gradoDanoAis,
               (v) => setState(() => _danoInstalaciones = v)),
+          _campoOpcion('Ductos de ventilación', _danoDuctosVentilacion, gradoDanoAis,
+              (v) => setState(() => _danoDuctosVentilacion = v)),
           _campoOpcion('Tanques elevados', _danoTanquesElevados, gradoDanoAis,
               (v) => setState(() => _danoTanquesElevados = v)),
         ]),
@@ -472,6 +502,16 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
               (v) => setState(() => _fallaTalud = v)),
           _campoOpcion('Asentamiento, subsidencia o licuación', _asentamientoSubsidenciaLicuacion,
               nivelPuntualGeneral, (v) => setState(() => _asentamientoSubsidenciaLicuacion = v)),
+          _campoOpcion('Grietas en el terreno circundante', _grietasTerrenoCircundante,
+              grietasTerrenoOpciones, (v) => setState(() => _grietasTerrenoCircundante = v)),
+        ]),
+        _seccionAis('Problemas del entorno', [
+          _campoOpcion('Edificio o infraestructura vecina crítica que pueda caer y afectar estabilidad',
+              _edificioVecinoCritico, edificioVecinoCriticoOpciones,
+              (v) => setState(() => _edificioVecinoCritico = v)),
+          _campoOpcion('Evento adverso inminente que pueda afectar la habitabilidad',
+              _eventoAdversoInminente, siNoOpciones,
+              (v) => setState(() => _eventoAdversoInminente = v)),
         ]),
         _seccionAis('Daños en elementos estructurales (piso de mayor afectación)', [
           _campoTexto(_nivelEntrepisoMayorDanoCtrl, 'Nivel de entrepiso con el mayor daño'),
@@ -483,7 +523,18 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           _campoOpcion('Entrepisos', _danoEntrepisos, gradoDanoAis,
               (v) => setState(() => _danoEntrepisos = v)),
         ]),
-        _seccionAis('Clasificación global del daño y habitabilidad', [
+        _seccionAis('Porcentaje de daño global', [
+          const Text(
+            'Estimación aparte, para dimensionar pérdidas económicas — NO '
+            'decide la habitabilidad. La clasificación oficial de '
+            'habitabilidad (verde/amarillo/naranja/rojo) la calcula el '
+            'servidor combinando las 5 evaluaciones anteriores (estado '
+            'general, geotécnico, no estructural, estructural y entorno), '
+            'tomando siempre la más conservadora — se ve al guardar, en la '
+            'ficha del expediente.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
           _campoTexto(_pctDanoGlobalCtrl, 'Porcentaje de daño global de la edificación (%)',
               teclado: const TextInputType.numberWithOptions(decimal: true)),
           if (clasificacion != null && colorHab != null)
@@ -491,10 +542,11 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
               color: _colorHabitabilidadFlutter(colorHab).withValues(alpha: 0.15),
               child: ListTile(
                 leading: Icon(Icons.rule, color: _colorHabitabilidadFlutter(colorHab)),
-                title: Text('Clasificación calculada: ${gradoDanoAis.firstWhere((g) => g['valor'] == clasificacion)['etiqueta']}'),
-                subtitle: Text(
-                  etiquetaHabitabilidad[colorHab] ?? colorHab,
-                  style: TextStyle(color: _colorHabitabilidadFlutter(colorHab), fontWeight: FontWeight.bold),
+                title: Text(
+                    'Clasificación de daño por %: ${gradoDanoAis.firstWhere((g) => g['valor'] == clasificacion)['etiqueta']}'),
+                subtitle: const Text(
+                  'Solo referencial — no es la habitabilidad oficial (ver nota arriba).',
+                  style: TextStyle(fontSize: 11),
                 ),
               ),
             ),
@@ -523,6 +575,12 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
               'Lugares de la edificación que requieren estas medidas'),
         ]),
         _seccionAis('Condiciones preexistentes', [
+          const Text(
+            'No cambian la clasificación de habitabilidad — documentan por '
+            'qué se dio el daño observado (factores de vulnerabilidad).',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
           _campoOpcion('Calidad de la construcción', _calidadConstruccion, calidadBuenaRegularMala,
               (v) => setState(() => _calidadConstruccion = v)),
           _campoOpcion('Posición de la edificación en la manzana', _posicionEdificacionManzana,
@@ -533,6 +591,25 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
               (v) => setState(() => _configuracionAltura = v)),
           _campoOpcion('Configuración estructural', _configuracionEstructural, calidadBuenaRegularMala,
               (v) => setState(() => _configuracionEstructural = v)),
+          _campoOpcion('Tipo de suelo', _tipoSuelo, tipoSueloOpciones,
+              (v) => setState(() => _tipoSuelo = v)),
+          _campoOpcion('Tipo de cimentación', _tipoCimentacion, tipoCimentacionOpciones,
+              (v) => setState(() => _tipoCimentacion = v)),
+          _campoOpcion('Calidad de la cimentación', _calidadCimentacion, calidadCimentacionOpciones,
+              (v) => setState(() => _calidadCimentacion = v)),
+          _campoOpcion('Condiciones topográficas', _condicionesTopograficas, condicionesTopograficasOpciones,
+              (v) => setState(() => _condicionesTopograficas = v)),
+          _campoOpcion('Tipo de cubierta', _tipoCubierta, tipoCubiertaOpciones,
+              (v) => setState(() => _tipoCubierta = v)),
+          _campoOpcion('Condiciones de amarre de la cubierta', _condicionesAmarreCubierta,
+              calidadBuenaRegularMala, (v) => setState(() => _condicionesAmarreCubierta = v)),
+          _campoOpcion('Efecto de columna corta', _efectoColumnaCorta, siNoOpciones,
+              (v) => setState(() => _efectoColumnaCorta = v)),
+          _campoOpcion('Continuidad en columnas y vigas', _continuidadColumnasVigas, siNoOpciones,
+              (v) => setState(() => _continuidadColumnasVigas = v)),
+          _campoOpcion('Evidencia de anclaje de elementos no estructurales',
+              _evidenciaAnclajeNoEstructural, evidenciaAnclajeOpciones,
+              (v) => setState(() => _evidenciaAnclajeNoEstructural = v)),
           SwitchListTile(
             dense: true,
             title: const Text('Hay indicios de daños por sismos anteriores'),
@@ -541,6 +618,8 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
           ),
           _campoOpcion('Hubo reparación', _huboReparacion, huboReparacionOpciones,
               (v) => setState(() => _huboReparacion = v)),
+          _campoOpcion('Se ha llevado a cabo reforzamiento estructural', _reforzamientoEstructuralAnterior,
+              huboReparacionOpciones, (v) => setState(() => _reforzamientoEstructuralAnterior = v)),
         ]),
         _seccionAis('Efecto en los ocupantes', [
           _campoOpcion('Hubo muertos o heridos', _huboMuertosHeridos, huboMuertosHeridosOpciones,
@@ -555,13 +634,14 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
                     teclado: TextInputType.number)),
           ]),
         ]),
-        _seccionAis('Ocupación de la edificación', [
+        _seccionAis('Ocupación de la edificación y contacto', [
           SwitchListTile(
             dense: true,
             title: const Text('En el momento de esta evaluación, la edificación está habitada'),
             value: _edificacionHabitada ?? false,
             onChanged: (v) => setState(() => _edificacionHabitada = v),
           ),
+          _campoTexto(_numeroOcupantesCtrl, 'Número de ocupantes', teclado: TextInputType.number),
           Row(children: [
             Expanded(
                 child: _campoTexto(_numUnidadesExistentesCtrl, 'Unidades existentes',
@@ -571,6 +651,14 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
                 child: _campoTexto(_numUnidadesNoHabitablesCtrl, 'Unidades no habitables',
                     teclado: TextInputType.number)),
           ]),
+          const SizedBox(height: 4),
+          const Text(
+            'Persona de contacto: se usa el informante del paso 1 (nombre y '
+            'teléfono) — solo falta el correo, que el formulario oficial '
+            'sí pide por separado.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          _campoTexto(_emailContactoCtrl, 'Correo del contacto', teclado: TextInputType.emailAddress),
         ]),
         _seccionAis('Comentarios e inspectores', [
           TextFormField(
@@ -591,6 +679,7 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
                     teclado: TextInputType.number)),
           ]),
           _campoTexto(_nombreLiderComisionCtrl, 'Nombre del líder de la comisión'),
+          _campoTexto(_otroInspectorCtrl, 'Otro inspector'),
         ]),
         const Divider(height: 32),
         const Text('Necesidades humanitarias', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1182,15 +1271,22 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         'desviacion_inclinacion': _aisDesviacionInclinacion,
         'falla_asentamiento_cimentacion': _aisFallaCimentacion,
         'dano_muros_fachada': _danoMurosFachada,
+        'dano_vidrios_exteriores': _danoVidriosExteriores,
+        'dano_acabados_exteriores': _danoAcabadosExteriores,
         'dano_muros_divisorios': _danoMurosDivisorios,
+        'dano_balcones': _danoBalcones,
         'dano_cielo_rasos': _danoCieloRasos,
         'dano_cubierta': _danoCubierta,
         'dano_escaleras': _danoEscaleras,
         'instalaciones_afectadas': _instalacionesAfectadas.toList(),
         'dano_instalaciones': _danoInstalaciones,
+        'dano_ductos_ventilacion': _danoDuctosVentilacion,
         'dano_tanques_elevados': _danoTanquesElevados,
         'falla_talud': _fallaTalud,
         'asentamiento_subsidencia_licuacion': _asentamientoSubsidenciaLicuacion,
+        'grietas_terreno_circundante': _grietasTerrenoCircundante,
+        'edificio_vecino_critico': _edificioVecinoCritico,
+        'evento_adverso_inminente': _eventoAdversoInminente,
         'nivel_entrepiso_mayor_dano': _nivelEntrepisoMayorDanoCtrl.text.trim(),
         'dano_columnas_muros_portantes': _danoColumnasMurosPortantes,
         'dano_vigas': _danoVigas,
@@ -1209,18 +1305,31 @@ class _NuevoExpedienteScreenState extends State<NuevoExpedienteScreen> {
         'configuracion_planta': _configuracionPlanta,
         'configuracion_altura': _configuracionAltura,
         'configuracion_estructural': _configuracionEstructural,
+        'tipo_suelo': _tipoSuelo,
+        'tipo_cimentacion': _tipoCimentacion,
+        'calidad_cimentacion': _calidadCimentacion,
+        'condiciones_topograficas': _condicionesTopograficas,
+        'tipo_cubierta': _tipoCubierta,
+        'condiciones_amarre_cubierta': _condicionesAmarreCubierta,
+        'efecto_columna_corta': _efectoColumnaCorta,
+        'continuidad_columnas_vigas': _continuidadColumnasVigas,
+        'evidencia_anclaje_no_estructural': _evidenciaAnclajeNoEstructural,
         'indicios_danos_sismos_anteriores': _indiciosDanosSismosAnteriores,
         'hubo_reparacion': _huboReparacion,
+        'reforzamiento_estructural_anterior': _reforzamientoEstructuralAnterior,
         'hubo_muertos_heridos': _huboMuertosHeridos,
         'numero_personas_fallecidas': int.tryParse(_numeroFallecidosCtrl.text.trim()),
         'numero_heridos': int.tryParse(_numeroHeridosCtrl.text.trim()),
         'edificacion_habitada': _edificacionHabitada,
+        'numero_ocupantes': int.tryParse(_numeroOcupantesCtrl.text.trim()),
         'num_unidades_existentes': int.tryParse(_numUnidadesExistentesCtrl.text.trim()),
         'num_unidades_no_habitables': int.tryParse(_numUnidadesNoHabitablesCtrl.text.trim()),
+        'email_contacto': _emailContactoCtrl.text.trim(),
         'comentarios': _comentariosAisCtrl.text.trim(),
         'codigo_comision': _codigoComisionCtrl.text.trim(),
         'numero_evaluadores': int.tryParse(_numeroEvaluadoresCtrl.text.trim()),
         'nombre_lider_comision': _nombreLiderComisionCtrl.text.trim(),
+        'otro_inspector': _otroInspectorCtrl.text.trim(),
         'fecha_inspeccion': DateTime.now().toIso8601String(),
         'creado_por': _recolectorNombreCtrl.text.trim(),
       });

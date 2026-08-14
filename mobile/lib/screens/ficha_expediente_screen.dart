@@ -218,9 +218,23 @@ class _FichaExpedienteScreenState extends State<FichaExpedienteScreen> {
                 ]),
               ),
             const SizedBox(height: 8),
-            _fila('Clasificación global del daño',
-                _etiquetaOpcion(gradoDanoAis, ais['clasificacion_global_dano'])),
-            _fila('% de daño global', ais['pct_dano_global']?.toString()),
+            // Las 5 evaluaciones independientes (sección 2.9 de la guía
+            // IDIGER 2018) — la habitabilidad de arriba es la más
+            // conservadora de estas 5, no un cálculo aparte.
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _chipClasificacionAis('A: Estado general', ais['clasificacion_a_estado_general']),
+                _chipClasificacionAis('B: Geotécnico', ais['clasificacion_b_geotecnico']),
+                _chipClasificacionAis('C: No estructural', ais['clasificacion_c_no_estructural']),
+                _chipClasificacionAis('D: Estructural', ais['clasificacion_d_estructural']),
+                _chipClasificacionAis('E: Entorno', ais['clasificacion_e_entorno']),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _fila('% de daño global (estimado, no decide habitabilidad)',
+                ais['pct_dano_global']?.toString()),
             _fila('Sistema estructural',
                 _etiquetaOpcion(sistemasEstructurales, ais['sistema_estructural'])),
             _fila('Tipo de entrepiso', _etiquetaOpcion(tiposEntrepiso, ais['tipo_entrepiso'])),
@@ -256,6 +270,27 @@ class _FichaExpedienteScreenState extends State<FichaExpedienteScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Chip pequeño para una de las 5 sub-clasificaciones A-E — mismo color
+  /// que tendría si esa fuera la clasificación final (verde/amarillo/
+  /// naranja/rojo), para poder ver de un vistazo cuál de las 5 fue la que
+  /// definió el resultado (la más conservadora).
+  Widget _chipClasificacionAis(String etiqueta, dynamic valor) {
+    const colorPorClasificacion = {
+      'habitable': 'verde', 'uso_restringido': 'amarillo',
+      'no_habitable': 'naranja', 'peligro_colapso': 'rojo',
+    };
+    final color = colorPorClasificacion[valor];
+    return Chip(
+      label: Text(
+        '$etiqueta: ${etiquetaClasificacionAbcde[valor] ?? '—'}',
+        style: const TextStyle(fontSize: 11),
+      ),
+      backgroundColor: color != null ? _colorHabitabilidad(color).withValues(alpha: 0.15) : null,
+      side: color != null ? BorderSide(color: _colorHabitabilidad(color)) : null,
+      visualDensity: VisualDensity.compact,
     );
   }
 

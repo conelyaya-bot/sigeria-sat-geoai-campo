@@ -241,8 +241,25 @@ MedidaSeguridad = Literal[
 ServicioDesconectar = Literal["energia", "gas", "agua"]
 CalidadBuenaRegularMala = Literal["buena", "regular", "mala"]
 PosicionManzana = Literal["esquina", "intermedia", "libre_un_costado", "libre_dos_costados"]
-HuboReparacion = Literal["total", "parcial", "ninguna"]
+HuboReparacion = Literal["total", "parcial", "ninguna", "no_determinado"]
 HuboMuertosHeridos = Literal["no", "si", "no_se_sabe"]
+
+# --- Campos agregados en la revisión con la guía IDIGER 2018 (4ta edición) —
+# más completa que la versión usada para la primera implementación del
+# módulo AIS. Ver comentarios en inspeccion_ais.py sobre la clasificación
+# A-E que reemplaza el cálculo simple por porcentaje.
+SiNoNoDeterminado3 = Literal["no", "si", "no_determinado"]
+SiNo = Literal["si", "no"]
+GrietasTerreno = Literal["no", "incipientes", "generalizadas"]
+TipoSuelo = Literal["duro", "medio", "blando"]
+TipoCimentacion = Literal["superficial", "profunda", "no_determinado"]
+CalidadCimentacion = Literal["buena", "regular", "mala", "no_determinado"]
+CondicionesTopograficas = Literal[
+    "plano", "cresta", "ladera", "pie_de_ladera", "valle", "borde_canal_rio_lago"
+]
+TipoCubierta = Literal["maciza", "liviana"]
+EvidenciaAnclaje = Literal["si", "no", "no_sabe"]
+ClasificacionABCDE = Literal["habitable", "uso_restringido", "no_habitable", "peligro_colapso"]
 
 
 class InspeccionAisCrear(BaseModel):
@@ -282,19 +299,28 @@ class InspeccionAisCrear(BaseModel):
     desviacion_inclinacion: Optional[SiNoIndeterminado] = None
     falla_asentamiento_cimentacion: Optional[SiNoIndeterminado] = None
 
-    # Daños en elementos arquitectónicos
+    # Daños en elementos arquitectónicos — 11 elementos (guía IDIGER 2018)
     dano_muros_fachada: Optional[GradoDanoAis] = None
+    dano_vidrios_exteriores: Optional[GradoDanoAis] = None
+    dano_acabados_exteriores: Optional[GradoDanoAis] = None
     dano_muros_divisorios: Optional[GradoDanoAis] = None
+    dano_balcones: Optional[GradoDanoAis] = None
     dano_cielo_rasos: Optional[GradoDanoAis] = None
     dano_cubierta: Optional[GradoDanoAis] = None
     dano_escaleras: Optional[GradoDanoAis] = None
     instalaciones_afectadas: Optional[list[InstalacionAfectada]] = None
     dano_instalaciones: Optional[GradoDanoAis] = None
+    dano_ductos_ventilacion: Optional[GradoDanoAis] = None
     dano_tanques_elevados: Optional[GradoDanoAis] = None
 
     # Problemas geotécnicos
     falla_talud: Optional[NivelPuntualGeneral] = None
     asentamiento_subsidencia_licuacion: Optional[NivelPuntualGeneral] = None
+    grietas_terreno_circundante: Optional[GrietasTerreno] = None
+
+    # Problemas del entorno (sección nueva de la guía 2018 — clasificación E)
+    edificio_vecino_critico: Optional[SiNoNoDeterminado3] = None
+    evento_adverso_inminente: Optional[SiNo] = None
 
     # Daños en elementos estructurales (piso de mayor afectación)
     nivel_entrepiso_mayor_dano: Optional[str] = None
@@ -303,10 +329,14 @@ class InspeccionAisCrear(BaseModel):
     dano_nudos_conexion: Optional[GradoDanoAis] = None
     dano_entrepisos: Optional[GradoDanoAis] = None
 
-    # Clasificación global — clasificacion_global_dano y
-    # clasificacion_habitabilidad se pueden mandar ya calculados desde el
-    # cliente (misma tabla de la guía: % → clasificación → color), pero
-    # también se recalculan en el backend por si vienen vacíos.
+    # Clasificación global — el backend SIEMPRE recalcula las 5 (A-E) y la
+    # global a partir de las respuestas; lo que venga aquí del cliente es
+    # solo referencia/adelanto visual, no se usa para decidir.
+    clasificacion_a_estado_general: Optional[ClasificacionABCDE] = None
+    clasificacion_b_geotecnico: Optional[ClasificacionABCDE] = None
+    clasificacion_c_no_estructural: Optional[ClasificacionABCDE] = None
+    clasificacion_d_estructural: Optional[ClasificacionABCDE] = None
+    clasificacion_e_entorno: Optional[ClasificacionABCDE] = None
     pct_dano_global: Optional[float] = None
     clasificacion_global_dano: Optional[GradoDanoAis] = None
     clasificacion_habitabilidad: Optional[ClasificacionHabitabilidad] = None
@@ -320,14 +350,26 @@ class InspeccionAisCrear(BaseModel):
     desconectar_servicios: Optional[list[ServicioDesconectar]] = None
     lugares_medidas_seguridad_texto: Optional[str] = None
 
-    # Condiciones preexistentes
+    # Condiciones preexistentes — sección 3.3 de la guía; no entran en la
+    # clasificación automática (queda "a criterio del evaluador" según el
+    # propio documento), documentan por qué se dio el daño observado.
     calidad_construccion: Optional[CalidadBuenaRegularMala] = None
     posicion_edificacion_manzana: Optional[PosicionManzana] = None
     configuracion_planta: Optional[CalidadBuenaRegularMala] = None
     configuracion_altura: Optional[CalidadBuenaRegularMala] = None
     configuracion_estructural: Optional[CalidadBuenaRegularMala] = None
+    tipo_suelo: Optional[TipoSuelo] = None
+    tipo_cimentacion: Optional[TipoCimentacion] = None
+    calidad_cimentacion: Optional[CalidadCimentacion] = None
+    condiciones_topograficas: Optional[CondicionesTopograficas] = None
+    tipo_cubierta: Optional[TipoCubierta] = None
+    condiciones_amarre_cubierta: Optional[CalidadBuenaRegularMala] = None
+    efecto_columna_corta: Optional[SiNo] = None
+    continuidad_columnas_vigas: Optional[SiNo] = None
+    evidencia_anclaje_no_estructural: Optional[EvidenciaAnclaje] = None
     indicios_danos_sismos_anteriores: Optional[bool] = None
     hubo_reparacion: Optional[HuboReparacion] = None
+    reforzamiento_estructural_anterior: Optional[HuboReparacion] = None
 
     # Efecto en los ocupantes
     hubo_muertos_heridos: Optional[HuboMuertosHeridos] = None
@@ -336,8 +378,13 @@ class InspeccionAisCrear(BaseModel):
 
     # Ocupación de la edificación
     edificacion_habitada: Optional[bool] = None
+    numero_ocupantes: Optional[int] = None
     num_unidades_existentes: Optional[int] = None
     num_unidades_no_habitables: Optional[int] = None
+
+    # Persona para contacto — email nuevo en la guía 2018 (nombre/teléfono
+    # se reutilizan de objeto_afectado.informante_*).
+    email_contacto: Optional[str] = None
 
     comentarios: Optional[str] = None
 
@@ -345,6 +392,7 @@ class InspeccionAisCrear(BaseModel):
     codigo_comision: Optional[str] = None
     numero_evaluadores: Optional[int] = None
     nombre_lider_comision: Optional[str] = None
+    otro_inspector: Optional[str] = None
 
     fecha_inspeccion: Optional[datetime] = None
     creado_por: Optional[str] = None

@@ -155,6 +155,66 @@ const huboReparacionOpciones = [
   {'valor': 'total', 'etiqueta': 'Total'},
   {'valor': 'parcial', 'etiqueta': 'Parcial'},
   {'valor': 'ninguna', 'etiqueta': 'Ninguna'},
+  {'valor': 'no_determinado', 'etiqueta': 'No se pudo determinar'},
+];
+
+// --- Campos agregados al revisar la guía IDIGER 2018 (4ta edición, la más
+// reciente confirmada) — más completa que la primera versión implementada.
+
+const siNoOpciones = [
+  {'valor': 'si', 'etiqueta': 'Sí'},
+  {'valor': 'no', 'etiqueta': 'No'},
+];
+
+const edificioVecinoCriticoOpciones = [
+  {'valor': 'no', 'etiqueta': 'No'},
+  {'valor': 'si', 'etiqueta': 'Sí'},
+  {'valor': 'no_determinado', 'etiqueta': 'No se pudo determinar'},
+];
+
+const grietasTerrenoOpciones = [
+  {'valor': 'no', 'etiqueta': 'No'},
+  {'valor': 'incipientes', 'etiqueta': 'Incipientes'},
+  {'valor': 'generalizadas', 'etiqueta': 'Generalizadas'},
+];
+
+const tipoSueloOpciones = [
+  {'valor': 'duro', 'etiqueta': 'Duro'},
+  {'valor': 'medio', 'etiqueta': 'Medio'},
+  {'valor': 'blando', 'etiqueta': 'Blando'},
+];
+
+const tipoCimentacionOpciones = [
+  {'valor': 'superficial', 'etiqueta': 'Superficial'},
+  {'valor': 'profunda', 'etiqueta': 'Profunda'},
+  {'valor': 'no_determinado', 'etiqueta': 'No se pudo determinar'},
+];
+
+const calidadCimentacionOpciones = [
+  {'valor': 'buena', 'etiqueta': 'Buena'},
+  {'valor': 'regular', 'etiqueta': 'Regular'},
+  {'valor': 'mala', 'etiqueta': 'Mala'},
+  {'valor': 'no_determinado', 'etiqueta': 'No se pudo determinar'},
+];
+
+const condicionesTopograficasOpciones = [
+  {'valor': 'plano', 'etiqueta': 'Plano'},
+  {'valor': 'cresta', 'etiqueta': 'Cresta'},
+  {'valor': 'ladera', 'etiqueta': 'Ladera'},
+  {'valor': 'pie_de_ladera', 'etiqueta': 'Pie de ladera'},
+  {'valor': 'valle', 'etiqueta': 'Valle'},
+  {'valor': 'borde_canal_rio_lago', 'etiqueta': 'Borde de canal, río o lago'},
+];
+
+const tipoCubiertaOpciones = [
+  {'valor': 'maciza', 'etiqueta': 'Maciza'},
+  {'valor': 'liviana', 'etiqueta': 'Liviana'},
+];
+
+const evidenciaAnclajeOpciones = [
+  {'valor': 'si', 'etiqueta': 'Sí'},
+  {'valor': 'no', 'etiqueta': 'No'},
+  {'valor': 'no_sabe', 'etiqueta': 'No se sabe'},
 ];
 
 const huboMuertosHeridosOpciones = [
@@ -190,4 +250,14 @@ const Map<String, String> etiquetaHabitabilidad = {
   'amarillo': 'Uso restringido (amarillo)',
   'naranja': 'No habitable (naranja)',
   'rojo': 'Peligro de colapso (rojo)',
+};
+
+/// Etiqueta corta para cada una de las 5 sub-clasificaciones A-E que
+/// calcula el backend (sección 2.9 de la guía IDIGER 2018 — la
+/// habitabilidad final es la más conservadora de las 5).
+const Map<String, String> etiquetaClasificacionAbcde = {
+  'habitable': 'Habitable',
+  'uso_restringido': 'Uso restringido',
+  'no_habitable': 'No habitable',
+  'peligro_colapso': 'Peligro de colapso',
 };

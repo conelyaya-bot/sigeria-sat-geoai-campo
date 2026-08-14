@@ -56,9 +56,16 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
   String? _aisAnioConstruccion;
   String? _aisExisteColapso;
   String? _danoMurosFachada;
+  String? _danoVidriosExteriores;
+  String? _danoAcabadosExteriores;
+  String? _danoBalcones;
   String? _danoCubierta;
+  String? _danoDuctosVentilacion;
   String? _danoColumnasMurosPortantes;
   final Set<String> _instalacionesAfectadas = {};
+  String? _grietasTerrenoCircundante;
+  String? _edificioVecinoCritico;
+  String? _eventoAdversoInminente;
   final _pctDanoGlobalCtrl = TextEditingController();
   final Set<String> _medidasSeguridad = {};
   bool? _edificacionHabitada;
@@ -114,10 +121,17 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
           _aisAnioConstruccion = ais['anio_construccion'];
           _aisExisteColapso = ais['existe_colapso'];
           _danoMurosFachada = ais['dano_muros_fachada'];
+          _danoVidriosExteriores = ais['dano_vidrios_exteriores'];
+          _danoAcabadosExteriores = ais['dano_acabados_exteriores'];
+          _danoBalcones = ais['dano_balcones'];
           _danoCubierta = ais['dano_cubierta'];
+          _danoDuctosVentilacion = ais['dano_ductos_ventilacion'];
           _danoColumnasMurosPortantes = ais['dano_columnas_muros_portantes'];
           _instalacionesAfectadas.addAll(
               (ais['instalaciones_afectadas'] as List<dynamic>? ?? []).cast<String>());
+          _grietasTerrenoCircundante = ais['grietas_terreno_circundante'];
+          _edificioVecinoCritico = ais['edificio_vecino_critico'];
+          _eventoAdversoInminente = ais['evento_adverso_inminente'];
           _pctDanoGlobalCtrl.text = ais['pct_dano_global']?.toString() ?? '';
           _medidasSeguridad.addAll(
               (ais['medidas_seguridad'] as List<dynamic>? ?? []).cast<String>());
@@ -239,9 +253,16 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
         'anio_construccion': _aisAnioConstruccion,
         'existe_colapso': _aisExisteColapso,
         'dano_muros_fachada': _danoMurosFachada,
+        'dano_vidrios_exteriores': _danoVidriosExteriores,
+        'dano_acabados_exteriores': _danoAcabadosExteriores,
+        'dano_balcones': _danoBalcones,
         'dano_cubierta': _danoCubierta,
+        'dano_ductos_ventilacion': _danoDuctosVentilacion,
         'dano_columnas_muros_portantes': _danoColumnasMurosPortantes,
         'instalaciones_afectadas': _instalacionesAfectadas.toList(),
+        'grietas_terreno_circundante': _grietasTerrenoCircundante,
+        'edificio_vecino_critico': _edificioVecinoCritico,
+        'evento_adverso_inminente': _eventoAdversoInminente,
         'pct_dano_global': double.tryParse(_pctDanoGlobalCtrl.text.replaceAll(',', '.').trim()),
         'medidas_seguridad': _medidasSeguridad.toList(),
         'edificacion_habitada': _edificacionHabitada,
@@ -368,8 +389,22 @@ class _EditarExpedienteScreenState extends State<EditarExpedienteScreen> {
             (v) => setState(() => _aisExisteColapso = v)),
         _campoOpcionAis('Muros de fachada', _danoMurosFachada, gradoDanoAis,
             (v) => setState(() => _danoMurosFachada = v)),
+        _campoOpcionAis('Vidrios exteriores', _danoVidriosExteriores, gradoDanoAis,
+            (v) => setState(() => _danoVidriosExteriores = v)),
+        _campoOpcionAis('Acabados exteriores', _danoAcabadosExteriores, gradoDanoAis,
+            (v) => setState(() => _danoAcabadosExteriores = v)),
+        _campoOpcionAis('Balcones', _danoBalcones, gradoDanoAis,
+            (v) => setState(() => _danoBalcones = v)),
         _campoOpcionAis('Cubierta', _danoCubierta, gradoDanoAis,
             (v) => setState(() => _danoCubierta = v)),
+        _campoOpcionAis('Ductos de ventilación', _danoDuctosVentilacion, gradoDanoAis,
+            (v) => setState(() => _danoDuctosVentilacion = v)),
+        _campoOpcionAis('Grietas en el terreno circundante', _grietasTerrenoCircundante,
+            grietasTerrenoOpciones, (v) => setState(() => _grietasTerrenoCircundante = v)),
+        _campoOpcionAis('Edificio vecino crítico', _edificioVecinoCritico,
+            edificioVecinoCriticoOpciones, (v) => setState(() => _edificioVecinoCritico = v)),
+        _campoOpcionAis('Evento adverso inminente', _eventoAdversoInminente, siNoOpciones,
+            (v) => setState(() => _eventoAdversoInminente = v)),
         _campoOpcionAis('Columnas o muros portantes', _danoColumnasMurosPortantes, gradoDanoAis,
             (v) => setState(() => _danoColumnasMurosPortantes = v)),
         _campoMultipleAis('Instalaciones afectadas', instalacionesOpciones, _instalacionesAfectadas),

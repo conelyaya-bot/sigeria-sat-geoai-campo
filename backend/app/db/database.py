@@ -52,6 +52,34 @@ def _migrar_columnas_nuevas(conn: sqlite3.Connection) -> None:
     migraciones = [
         ("objeto_afectado", "observaciones_tecnicas", "TEXT"),
         ("objeto_afectado", "personas_afectadas", "INTEGER"),
+        # Ampliación de inspeccion_ais a la guía IDIGER 2018 (4ta edición) —
+        # la tabla ya existía en producción con el set de columnas anterior.
+        ("inspeccion_ais", "dano_vidrios_exteriores", "TEXT"),
+        ("inspeccion_ais", "dano_acabados_exteriores", "TEXT"),
+        ("inspeccion_ais", "dano_balcones", "TEXT"),
+        ("inspeccion_ais", "dano_ductos_ventilacion", "TEXT"),
+        ("inspeccion_ais", "grietas_terreno_circundante", "TEXT"),
+        ("inspeccion_ais", "edificio_vecino_critico", "TEXT"),
+        ("inspeccion_ais", "evento_adverso_inminente", "TEXT"),
+        ("inspeccion_ais", "tipo_suelo", "TEXT"),
+        ("inspeccion_ais", "tipo_cimentacion", "TEXT"),
+        ("inspeccion_ais", "calidad_cimentacion", "TEXT"),
+        ("inspeccion_ais", "condiciones_topograficas", "TEXT"),
+        ("inspeccion_ais", "tipo_cubierta", "TEXT"),
+        ("inspeccion_ais", "condiciones_amarre_cubierta", "TEXT"),
+        ("inspeccion_ais", "efecto_columna_corta", "TEXT"),
+        ("inspeccion_ais", "continuidad_columnas_vigas", "TEXT"),
+        ("inspeccion_ais", "evidencia_anclaje_no_estructural", "TEXT"),
+        ("inspeccion_ais", "reforzamiento_estructural_anterior", "TEXT"),
+        ("inspeccion_ais", "numero_ocupantes", "INTEGER"),
+        ("inspeccion_ais", "email_contacto", "TEXT"),
+        ("inspeccion_ais", "otro_inspector", "TEXT"),
+        # Clasificación A-E individual (antes solo se guardaba la global).
+        ("inspeccion_ais", "clasificacion_a_estado_general", "TEXT"),
+        ("inspeccion_ais", "clasificacion_b_geotecnico", "TEXT"),
+        ("inspeccion_ais", "clasificacion_c_no_estructural", "TEXT"),
+        ("inspeccion_ais", "clasificacion_d_estructural", "TEXT"),
+        ("inspeccion_ais", "clasificacion_e_entorno", "TEXT"),
     ]
     for tabla, columna, tipo in migraciones:
         try:

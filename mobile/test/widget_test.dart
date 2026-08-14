@@ -75,7 +75,8 @@ void main() {
     expect(find.text('Descripción de la estructura'), findsOneWidget);
     expect(find.text('Daños en elementos arquitectónicos'), findsOneWidget);
     expect(find.text('Problemas geotécnicos'), findsOneWidget);
-    expect(find.text('Clasificación global del daño y habitabilidad'), findsOneWidget);
+    expect(find.text('Porcentaje de daño global'), findsOneWidget);
+    expect(find.text('Problemas del entorno'), findsOneWidget);
     expect(find.text('Recomendaciones y medidas de seguridad'), findsOneWidget);
     expect(find.text('Comentarios e inspectores'), findsOneWidget);
     expect(find.text('Terreno y cimentación'), findsNothing); // checklist viejo, ya no existe
